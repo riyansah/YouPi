@@ -1,10 +1,11 @@
-import type { Activity, Task } from "@/lib/types";
+import type { Activity, Routine, Task } from "@/lib/types";
 
 export type TaskFormInput = Pick<Task, "title" | "description" | "status" | "priority" | "startDate" | "deadline">;
 export type ActivityFormInput = Pick<
   Activity,
   "title" | "category" | "date" | "startTime" | "endTime" | "status" | "notes"
 >;
+export type RoutineFormInput = Pick<Routine, "title" | "days" | "startTime" | "endTime" | "priority" | "notes">;
 
 export function validateTaskForm(input: TaskFormInput) {
   const errors: string[] = [];
@@ -29,6 +30,24 @@ export function validateActivityForm(input: ActivityFormInput) {
 
   if (input.title.trim().length < 3) {
     errors.push("Judul aktivitas minimal 3 karakter.");
+  }
+
+  if (input.endTime <= input.startTime) {
+    errors.push("Waktu selesai harus lebih besar dari waktu mulai.");
+  }
+
+  return errors;
+}
+
+export function validateRoutineForm(input: RoutineFormInput) {
+  const errors: string[] = [];
+
+  if (input.title.trim().length < 3) {
+    errors.push("Judul rutinitas minimal 3 karakter.");
+  }
+
+  if (!input.days.length) {
+    errors.push("Pilih minimal satu hari untuk rutinitas.");
   }
 
   if (input.endTime <= input.startTime) {

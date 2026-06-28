@@ -8,8 +8,13 @@ import { ActivityPerDayChart, TaskStatusChart, WeeklyProgressChart } from "@/com
 import { StatCard } from "@/components/StatCard";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import {
+  buildTodayAgendaItems,
+  cn,
   formatDate,
-  formatDeadlineCountdown,
+  formatDateWithWeekday,
+  formatTimeRange,
+  getDeadlineCountdownState,
+  nowIso,
   paginateItems,
   sortTasksByNearestDeadline,
   summarizeActivities,
@@ -20,29 +25,57 @@ import {
 
 const dashboardPageSize = 4;
 
+const countdownToneStyles = {
+  green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  amber: "border-amber-200 bg-amber-50 text-amber-700",
+  red: "border-rose-200 bg-rose-50 text-rose-700"
+};
+
+const agendaTypeStyles = {
+  Aktivitas: "bg-teal-50 text-teal-700",
+  Rutinitas: "bg-violet-50 text-violet-700"
+};
+
+const priorityStyles = {
+  Rendah: "bg-slate-100 text-slate-700",
+  Sedang: "bg-blue-50 text-blue-700",
+  Tinggi: "bg-rose-50 text-rose-700"
+};
+
+const statusStyles = {
+  Direncanakan: "bg-slate-100 text-slate-700",
+  Berjalan: "bg-blue-50 text-blue-700",
+  Selesai: "bg-teal-50 text-teal-700",
+  Tertunda: "bg-amber-50 text-amber-700"
+};
+
 export default function DashboardPage() {
-  const { tasks, activities, settings } = useDashboardStore();
+  const { tasks, activities, routines, settings, setActivities } = useDashboardStore();
   const [taskPage, setTaskPage] = useState(1);
-  const [activityPage, setActivityPage] = useState(1);
+  const [agendaPage, setAgendaPage] = useState(1);
   const now = useNow();
   const taskSummary = summarizeTasks(tasks);
   const activitySummary = summarizeActivities(activities);
   const nearestDeadlineTasks = useMemo(() => sortTasksByNearestDeadline(tasks), [tasks]);
-  const todayActivities = useMemo(
-    () =>
-      activities
-        .filter((activity) => activity.date === todayDate())
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [activities]
+  const todayAgendaItems = useMemo(
+    () => (now === null ? [] : buildTodayAgendaItems(activities, routines, todayDate(), now)),
+    [activities, now, routines]
   );
   const paginatedTasks = useMemo(
     () => paginateItems(nearestDeadlineTasks, taskPage, dashboardPageSize),
     [nearestDeadlineTasks, taskPage]
   );
-  const paginatedActivities = useMemo(
-    () => paginateItems(todayActivities, activityPage, dashboardPageSize),
-    [activityPage, todayActivities]
+  const paginatedAgenda = useMemo(
+    () => paginateItems(todayAgendaItems, agendaPage, dashboardPageSize),
+    [agendaPage, todayAgendaItems]
   );
+
+  function handleCompleteActivity(id: string) {
+    const timestamp = nowIso();
+    setActivities((current) =>
+      current.map((activity) => (activity.id === id ? { ...activity, status: "Selesai", updatedAt: timestamp } : activity))
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -87,9 +120,28 @@ export default function DashboardPage() {
                       {task.status}
                     </span>
                   </div>
-                  <div className="mt-2 space-y-1 text-xs">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <p className="text-slate-500">Deadline {formatDate(task.deadline)}</p>
-                    <p className="font-medium text-amber-700">{now === null ? "Memuat hitung mundur..." : formatDeadlineCountdown(task.deadline, now)}</p>
+                    {now === null ? (
+                      <p className="font-medium text-slate-500">Memuat hitung mundur...</p>
+                    ) : (
+                      (() => {
+                        const countdown = getDeadlineCountdownState(task.deadline, now);
+
+                        return (
+                          <div
+                            className={cn(
+                              "inline-flex max-w-full shrink-0 rounded-md border px-2 py-1 text-xs font-semibold tabular-nums leading-none sm:text-sm",
+                              countdownToneStyles[countdown.tone]
+                            )}
+                            aria-label={countdown.fullLabel}
+                            title={countdown.fullLabel}
+                          >
+                            <span className="truncate">{countdown.displayLabel}</span>
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 </Link>
               ))
@@ -110,40 +162,66 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-950">Aktivitas Hari Ini</h2>
+          <h2 className="text-base font-semibold text-slate-950">Kegiatan Hari Ini</h2>
+          <p className="mt-1 text-sm text-slate-500">{formatDateWithWeekday(todayDate())}</p>
           <div className="mt-4 divide-y divide-slate-200">
-            {paginatedActivities.totalItems ? (
-              paginatedActivities.items.map((activity) => (
-                <Link
-                  key={activity.id}
-                  href={`/activities?activityId=${activity.id}`}
-                  className="block rounded py-3 first:pt-0 last:pb-0 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
+            {now === null ? (
+              <p className="text-sm text-slate-500">Memuat kegiatan hari ini...</p>
+            ) : paginatedAgenda.totalItems ? (
+              paginatedAgenda.items.map((item) => (
+                <div key={`${item.type}-${item.id}`} className="rounded py-3 first:pt-0 last:pb-0 hover:bg-slate-50">
                   <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="font-medium text-slate-950">{activity.title}</p>
+                    <Link
+                      href={item.href}
+                      className="min-w-0 flex-1 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={cn("rounded px-2 py-1 text-xs font-semibold", agendaTypeStyles[item.type])}>
+                          {item.type}
+                        </span>
+                        {item.type === "Aktivitas" && item.status ? (
+                          <span className={cn("rounded px-2 py-1 text-xs font-semibold", statusStyles[item.status])}>
+                            {item.status}
+                          </span>
+                        ) : null}
+                        {item.type === "Rutinitas" && item.priority ? (
+                          <span className={cn("rounded px-2 py-1 text-xs font-semibold", priorityStyles[item.priority])}>
+                            {item.priority}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 font-medium text-slate-950">{item.title}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {activity.startTime} - {activity.endTime} · {activity.category}
+                        {formatTimeRange(item.startTime, item.endTime)} · {item.metaLabel}
                       </p>
-                    </div>
-                    <span className="shrink-0 rounded bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">
-                      {activity.status}
-                    </span>
+                    </Link>
+                    {item.type === "Aktivitas" ? (
+                      <label className="inline-flex shrink-0 items-center gap-2 rounded border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          onChange={() => handleCompleteActivity(item.id)}
+                          className="h-4 w-4 accent-teal-700"
+                          aria-label={`Tandai ${item.title} selesai`}
+                        />
+                        <span>Selesai</span>
+                      </label>
+                    ) : null}
                   </div>
-                </Link>
+                </div>
               ))
             ) : (
-              <p className="text-sm text-slate-500">Belum ada aktivitas untuk hari ini.</p>
+              <p className="text-sm text-slate-500">Belum ada kegiatan tersisa untuk hari ini.</p>
             )}
           </div>
           <div className="mt-4">
             <Pagination
-              currentPage={paginatedActivities.currentPage}
-              totalPages={paginatedActivities.totalPages}
-              totalItems={paginatedActivities.totalItems}
-              startItem={paginatedActivities.startItem}
-              endItem={paginatedActivities.endItem}
-              onPageChange={setActivityPage}
+              currentPage={paginatedAgenda.currentPage}
+              totalPages={paginatedAgenda.totalPages}
+              totalItems={paginatedAgenda.totalItems}
+              startItem={paginatedAgenda.startItem}
+              endItem={paginatedAgenda.endItem}
+              onPageChange={setAgendaPage}
             />
           </div>
         </div>

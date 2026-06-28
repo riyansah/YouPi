@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useState } from "react";
 import { Download, RotateCcw, Save, Upload } from "lucide-react";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { defaultActivities, defaultSettings, defaultTasks } from "@/lib/data";
+import { defaultActivities, defaultRoutines, defaultSettings, defaultTasks } from "@/lib/data";
 import { createDashboardBackup, parseDashboardBackup } from "@/lib/storage";
 import type { ActivityCategory, ThemePreference } from "@/lib/types";
 import { activityCategories } from "@/lib/types";
@@ -11,7 +11,7 @@ import { activityCategories } from "@/lib/types";
 const themes: ThemePreference[] = ["Terang", "Gelap", "Sistem"];
 
 export default function SettingsPage() {
-  const { tasks, setTasks, activities, setActivities, settings, setSettings } = useDashboardStore();
+  const { tasks, setTasks, activities, setActivities, routines, setRoutines, settings, setSettings } = useDashboardStore();
   const [saved, setSaved] = useState(false);
   const [dataMessage, setDataMessage] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export default function SettingsPage() {
   }
 
   function handleExport() {
-    const backup = createDashboardBackup(tasks, activities, settings);
+    const backup = createDashboardBackup(tasks, activities, routines, settings);
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -66,6 +66,7 @@ export default function SettingsPage() {
 
     setTasks(parsed.backup.tasks);
     setActivities(parsed.backup.activities);
+    setRoutines(parsed.backup.routines);
     setSettings(parsed.backup.settings);
     setDataMessage("Backup berhasil diimpor.");
   }
@@ -77,6 +78,7 @@ export default function SettingsPage() {
 
     setTasks(defaultTasks);
     setActivities(defaultActivities);
+    setRoutines(defaultRoutines);
     setSettings(defaultSettings);
     setDataMessage("Data lokal dikembalikan ke data awal.");
   }
@@ -166,7 +168,7 @@ export default function SettingsPage() {
       <section className="grid gap-4 rounded border border-slate-200 bg-white p-5 shadow-sm">
         <div>
           <h2 className="text-base font-semibold text-slate-950">Backup Data Lokal</h2>
-          <p className="mt-1 text-sm text-slate-500">Kelola salinan data pekerjaan, aktivitas, dan preferensi.</p>
+          <p className="mt-1 text-sm text-slate-500">Kelola salinan data pekerjaan, aktivitas, rutinitas, dan preferensi.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button

@@ -1,25 +1,28 @@
-import { activityCategories, activityStatuses, taskPriorities, taskStatuses } from "@/lib/types";
-import type { Activity, DashboardSettings, Task } from "@/lib/types";
+import { activityCategories, activityStatuses, taskPriorities, taskStatuses, weekdays } from "@/lib/types";
+import type { Activity, DashboardSettings, Routine, Task } from "@/lib/types";
 
 export interface DashboardBackup {
-  version: 1;
+  version: 2;
   exportedAt: string;
   tasks: Task[];
   activities: Activity[];
+  routines: Routine[];
   settings: DashboardSettings;
 }
 
 export function createDashboardBackup(
   tasks: Task[],
   activities: Activity[],
+  routines: Routine[],
   settings: DashboardSettings,
   exportedAt = new Date().toISOString()
 ): DashboardBackup {
   return {
-    version: 1,
+    version: 2,
     exportedAt,
     tasks,
     activities,
+    routines,
     settings
   };
 }
@@ -28,7 +31,7 @@ export function parseDashboardBackup(value: string): { ok: true; backup: Dashboa
   try {
     const parsed = JSON.parse(value) as unknown;
 
-    if (!isRecord(parsed) || parsed.version !== 1) {
+    if (!isRecord(parsed) || (parsed.version !== 1 && parsed.version !== 2)) {
       return { ok: false, error: "File backup tidak didukung." };
     }
 
@@ -45,13 +48,20 @@ export function parseDashboardBackup(value: string): { ok: true; backup: Dashboa
       return { ok: false, error: "Isi backup tidak valid." };
     }
 
+    const routines = parsed.version === 2 ? parsed.routines : [];
+
+    if (!Array.isArray(routines) || !routines.every(isRoutine)) {
+      return { ok: false, error: "Isi backup tidak valid." };
+    }
+
     return {
       ok: true,
       backup: {
-        version: 1,
+        version: 2,
         exportedAt: parsed.exportedAt,
         tasks: parsed.tasks,
         activities: parsed.activities,
+        routines,
         settings: parsed.settings
       }
     };
@@ -92,6 +102,24 @@ function isActivity(value: unknown): value is Activity {
     isString(value.startTime) &&
     isString(value.endTime) &&
     includesValue(activityStatuses, value.status) &&
+    isString(value.notes) &&
+    isString(value.createdAt) &&
+    isString(value.updatedAt)
+  );
+}
+
+function isRoutine(value: unknown): value is Routine {
+  if (!isRecord(value) || !Array.isArray(value.days)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isString(value.title) &&
+    value.days.every((day) => includesValue(weekdays, day)) &&
+    isString(value.startTime) &&
+    isString(value.endTime) &&
+    includesValue(taskPriorities, value.priority) &&
     isString(value.notes) &&
     isString(value.createdAt) &&
     isString(value.updatedAt)

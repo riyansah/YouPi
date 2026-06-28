@@ -1,5 +1,6 @@
 export type TaskStatus = "Berjalan" | "Selesai" | "Tertunda" | "Dibatalkan";
 export type TaskPriority = "Rendah" | "Sedang" | "Tinggi";
+export type Weekday = "Senin" | "Selasa" | "Rabu" | "Kamis" | "Jumat" | "Sabtu" | "Minggu";
 
 export type ActivityCategory =
   | "Kerja"
@@ -40,6 +41,18 @@ export interface Activity {
   updatedAt: string;
 }
 
+export interface Routine {
+  id: string;
+  title: string;
+  days: Weekday[];
+  startTime: string;
+  endTime: string;
+  priority: TaskPriority;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DashboardSettings {
   dashboardName: string;
   theme: ThemePreference;
@@ -67,6 +80,7 @@ export interface ActivitySummary {
 
 export const taskStatuses: TaskStatus[] = ["Berjalan", "Selesai", "Tertunda", "Dibatalkan"];
 export const taskPriorities: TaskPriority[] = ["Rendah", "Sedang", "Tinggi"];
+export const weekdays: Weekday[] = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 export const activityCategories: ActivityCategory[] = [
   "Kerja",
   "Belajar",

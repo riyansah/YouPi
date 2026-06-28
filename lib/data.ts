@@ -1,7 +1,8 @@
-import type { Activity, DashboardSettings, Task } from "@/lib/types";
+import type { Activity, DashboardSettings, Routine, Task } from "@/lib/types";
 
 export const taskStorageKey = "personal-dashboard-tasks";
 export const activityStorageKey = "personal-dashboard-activities";
+export const routineStorageKey = "personal-dashboard-routines";
 export const settingsStorageKey = "personal-dashboard-settings";
 
 export const defaultTasks: Task[] = [
@@ -343,6 +344,54 @@ export const defaultActivities: Activity[] = [
     notes: "Catat pola energi dan hambatan harian.",
     createdAt: "2026-06-18T20:55:00.000Z",
     updatedAt: "2026-06-18T21:20:00.000Z"
+  }
+];
+
+
+export const defaultRoutines: Routine[] = [
+  {
+    id: "routine-1",
+    title: "Review agenda pagi",
+    days: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"],
+    startTime: "07:30",
+    endTime: "08:00",
+    priority: "Tinggi",
+    notes: "Cek prioritas utama sebelum mulai kerja.",
+    createdAt: "2026-06-20T06:00:00.000Z",
+    updatedAt: "2026-06-20T06:00:00.000Z"
+  },
+  {
+    id: "routine-2",
+    title: "Istirahat siang terjadwal",
+    days: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"],
+    startTime: "12:00",
+    endTime: "12:30",
+    priority: "Sedang",
+    notes: "Jeda makan dan lepas layar.",
+    createdAt: "2026-06-20T06:10:00.000Z",
+    updatedAt: "2026-06-20T06:10:00.000Z"
+  },
+  {
+    id: "routine-3",
+    title: "Olahraga akhir pekan",
+    days: ["Sabtu", "Minggu"],
+    startTime: "07:00",
+    endTime: "07:45",
+    priority: "Sedang",
+    notes: "Sesi ringan untuk menjaga ritme tubuh.",
+    createdAt: "2026-06-20T06:20:00.000Z",
+    updatedAt: "2026-06-20T06:20:00.000Z"
+  },
+  {
+    id: "routine-4",
+    title: "Catatan penutup hari",
+    days: ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"],
+    startTime: "17:30",
+    endTime: "17:45",
+    priority: "Rendah",
+    notes: "Tuliskan evaluasi singkat dan rencana besok.",
+    createdAt: "2026-06-20T06:30:00.000Z",
+    updatedAt: "2026-06-20T06:30:00.000Z"
   }
 ];
 

@@ -1,5 +1,26 @@
 # Changelog
 
+
+## 0.5.0 - 2026-06-25
+
+- Added a new `Rutinitas` menu with local CRUD for weekly routines and backup support.
+- Replaced the dashboard activity panel with `Kegiatan Hari Ini`, combining unfinished activities and active routines with highlighted type labels and dashboard completion checkboxes for activities.
+
+## 0.4.7 - 2026-06-25
+
+- Aligned dashboard deadline dates and countdown badges on the same row with the countdown right-aligned.
+- Added hover highlight states to task rows and daily activity cards for consistency with the dashboard.
+
+## 0.4.6 - 2026-06-25
+
+- Replaced the large deadline countdown cards with a compact `DD:HH:MM:SS` format for active tasks.
+- Updated overdue countdowns to compact adaptive labels such as `Terlambat 05 Menit`, `Terlambat 03 Jam`, and `Terlambat 02 Hari 04 Jam`.
+
+## 0.4.5 - 2026-06-25
+
+- Redesigned active deadline countdowns to emphasize the numeric value and apply green, amber, and red urgency states.
+- Kept live deadline countdowns on the dashboard and task list while preserving hydration-safe loading behavior.
+
 ## 0.4.4 - 2026-06-25
 
 - Fixed hydration mismatch on deadline countdowns by delaying live countdown rendering until the dashboard and task list mount in the browser.

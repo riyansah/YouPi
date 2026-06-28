@@ -3,7 +3,7 @@
 import { Edit2, Trash2 } from "lucide-react";
 import type { Task, TaskStatus } from "@/lib/types";
 import { taskStatuses } from "@/lib/types";
-import { cn, formatDate, formatDeadlineCountdown, getDeadlineTimestamp } from "@/lib/utils";
+import { cn, formatDate, getDeadlineCountdownState } from "@/lib/utils";
 
 interface TaskTableProps {
   tasks: Task[];
@@ -24,6 +24,12 @@ const statusStyles = {
   Selesai: "bg-teal-50 text-teal-700",
   Tertunda: "bg-amber-50 text-amber-700",
   Dibatalkan: "bg-slate-100 text-slate-700"
+};
+
+const countdownToneStyles = {
+  green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  amber: "border-amber-200 bg-amber-50 text-amber-700",
+  red: "border-rose-200 bg-rose-50 text-rose-700"
 };
 
 export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange }: TaskTableProps) {
@@ -52,10 +58,10 @@ export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange }: Task
           <tbody className="divide-y divide-slate-200">
             {tasks.map((task) => {
               const isActiveTask = task.status !== "Selesai" && task.status !== "Dibatalkan";
-              const isOverdue = isActiveTask && now !== null && getDeadlineTimestamp(task.deadline) < now;
+              const countdown = isActiveTask && now !== null ? getDeadlineCountdownState(task.deadline, now) : null;
 
               return (
-                <tr key={task.id} className="align-top">
+                <tr key={task.id} className="align-top transition-colors hover:bg-slate-50">
                   <td className="max-w-sm px-4 py-4">
                     <p className="font-semibold text-slate-950">{task.title}</p>
                     <p className="mt-1 text-slate-500">{task.description}</p>
@@ -82,9 +88,20 @@ export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange }: Task
                   <td className="whitespace-nowrap px-4 py-4 text-slate-600">
                     <p>{formatDate(task.deadline)}</p>
                     {isActiveTask ? (
-                      <p className={cn("mt-1 text-xs font-medium", isOverdue ? "text-rose-600" : "text-amber-700")}>
-                        {now === null ? "Memuat hitung mundur..." : formatDeadlineCountdown(task.deadline, now)}
-                      </p>
+                      now === null ? (
+                        <p className="mt-1 text-xs font-medium text-slate-500">Memuat hitung mundur...</p>
+                      ) : countdown ? (
+                        <div
+                          className={cn(
+                            "mt-2 inline-flex max-w-full rounded-md border px-2 py-1 text-[11px] font-semibold tabular-nums leading-none sm:text-xs",
+                            countdownToneStyles[countdown.tone]
+                          )}
+                          aria-label={countdown.fullLabel}
+                          title={countdown.fullLabel}
+                        >
+                          <span className="truncate">{countdown.displayLabel}</span>
+                        </div>
+                      ) : null
                     ) : null}
                   </td>
                   <td className="px-4 py-4">

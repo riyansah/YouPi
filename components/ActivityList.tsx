@@ -10,6 +10,7 @@ interface ActivityListProps {
   onEdit: (activity: Activity) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: ActivityStatus) => void;
+  onComplete: (id: string) => void;
 }
 
 const statusStyles = {
@@ -19,7 +20,7 @@ const statusStyles = {
   Tertunda: "bg-amber-50 text-amber-700"
 };
 
-export function ActivityList({ activities, onEdit, onDelete, onStatusChange }: ActivityListProps) {
+export function ActivityList({ activities, onEdit, onDelete, onStatusChange, onComplete }: ActivityListProps) {
   if (!activities.length) {
     return (
       <div className="rounded border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
@@ -31,7 +32,10 @@ export function ActivityList({ activities, onEdit, onDelete, onStatusChange }: A
   return (
     <div className="space-y-3">
       {activities.map((activity) => (
-        <article key={activity.id} className="rounded border border-slate-200 bg-white p-4 shadow-sm">
+        <article
+          key={activity.id}
+          className="rounded border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50"
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -46,6 +50,16 @@ export function ActivityList({ activities, onEdit, onDelete, onStatusChange }: A
               {activity.notes ? <p className="mt-2 text-sm text-slate-600">{activity.notes}</p> : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-2 rounded border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">
+                <input
+                  type="checkbox"
+                  checked={activity.status === "Selesai"}
+                  disabled={activity.status === "Selesai"}
+                  onChange={() => onComplete(activity.id)}
+                  className="h-4 w-4 accent-teal-700"
+                />
+                <span>Selesai</span>
+              </label>
               <select
                 value={activity.status}
                 onChange={(event) => onStatusChange(activity.id, event.target.value as ActivityStatus)}

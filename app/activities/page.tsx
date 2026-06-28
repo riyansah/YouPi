@@ -187,6 +187,10 @@ function ActivitiesPageContent() {
     );
   }
 
+  function handleComplete(id: string) {
+    handleStatusChange(id, "Selesai");
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -198,9 +202,7 @@ function ActivitiesPageContent() {
       <section className="rounded border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Plus className="h-5 w-5 text-teal-700" />
-          <h2 className="text-base font-semibold text-slate-950">
-            {editingId ? "Edit Aktivitas" : "Tambah Aktivitas"}
-          </h2>
+          <h2 className="text-base font-semibold text-slate-950">{editingId ? "Edit Aktivitas" : "Tambah Aktivitas"}</h2>
         </div>
         {formErrors.length ? (
           <div className="mb-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -337,6 +339,7 @@ function ActivitiesPageContent() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStatusChange={handleStatusChange}
+        onComplete={handleComplete}
       />
       <Pagination
         currentPage={paginatedActivities.currentPage}
