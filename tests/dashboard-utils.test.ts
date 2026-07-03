@@ -7,6 +7,7 @@ import { appRoutes } from "../lib/navigation";
 import { createDashboardBackup, parseDashboardBackup } from "../lib/storage";
 import {
   buildTodayAgendaItems,
+  dailyActivityChartData,
   filterByReportPeriod,
   formatDeadlineCountdown,
   getDeadlineCountdownState,
@@ -36,6 +37,91 @@ test("summarizeActivities finds totals and dominant values", () => {
   assert.equal(summary.total, 20);
   assert.equal(summary.dominantCategory, "Kerja");
   assert.equal(summary.mostFrequentActivity, "Deep work dashboard");
+});
+
+test("dailyActivityChartData combines activities and scheduled routines for seven days", () => {
+  const result = dailyActivityChartData(
+    [
+      {
+        id: "activity-1",
+        title: "Aktivitas 1",
+        category: "Kerja",
+        date: "2026-06-25",
+        startTime: "08:00",
+        endTime: "09:00",
+        status: "Selesai",
+        notes: "",
+        createdAt: "2026-06-25T07:00:00.000Z",
+        updatedAt: "2026-06-25T09:00:00.000Z"
+      },
+      {
+        id: "activity-2",
+        title: "Aktivitas 2",
+        category: "Belajar",
+        date: "2026-06-25",
+        startTime: "10:00",
+        endTime: "11:00",
+        status: "Berjalan",
+        notes: "",
+        createdAt: "2026-06-25T09:00:00.000Z",
+        updatedAt: "2026-06-25T09:00:00.000Z"
+      },
+      {
+        id: "activity-3",
+        title: "Aktivitas 3",
+        category: "Olahraga",
+        date: "2026-06-24",
+        startTime: "07:00",
+        endTime: "07:30",
+        status: "Direncanakan",
+        notes: "",
+        createdAt: "2026-06-24T06:00:00.000Z",
+        updatedAt: "2026-06-24T06:00:00.000Z"
+      }
+    ],
+    [
+      {
+        id: "routine-thursday",
+        title: "Rutinitas Kamis",
+        days: ["Kamis"],
+        startTime: "06:00",
+        endTime: "06:30",
+        priority: "Sedang",
+        notes: "",
+        createdAt: "2026-06-20T06:00:00.000Z",
+        updatedAt: "2026-06-20T06:00:00.000Z"
+      },
+      {
+        id: "routine-wednesday",
+        title: "Rutinitas Rabu",
+        days: ["Rabu"],
+        startTime: "06:00",
+        endTime: "06:30",
+        priority: "Rendah",
+        notes: "",
+        createdAt: "2026-06-20T06:00:00.000Z",
+        updatedAt: "2026-06-20T06:00:00.000Z"
+      },
+      {
+        id: "routine-monday-thursday",
+        title: "Rutinitas Senin Kamis",
+        days: ["Senin", "Kamis"],
+        startTime: "06:00",
+        endTime: "06:30",
+        priority: "Tinggi",
+        notes: "",
+        createdAt: "2026-06-20T06:00:00.000Z",
+        updatedAt: "2026-06-20T06:00:00.000Z"
+      }
+    ],
+    "2026-06-25"
+  );
+
+  assert.deepEqual(
+    result.map((item) => item.total),
+    [0, 0, 0, 1, 0, 2, 4]
+  );
+  assert.deepEqual(result[result.length - 1], { date: "25 Jun 2026", total: 4, activities: 2, routines: 2 });
 });
 
 test("filterByReportPeriod filters daily activity rows", () => {
@@ -280,6 +366,50 @@ test("dashboard backup round-trips valid local data", () => {
     assert.equal(parsed.backup.activities.length, defaultActivities.length);
     assert.equal(parsed.backup.routines.length, defaultRoutines.length);
     assert.equal(parsed.backup.settings.dashboardName, defaultSettings.dashboardName);
+    assert.equal("accountName" in parsed.backup.settings, false);
+    assert.equal("accountEmail" in parsed.backup.settings, false);
+  }
+});
+
+test("dashboard backup does not require local account fields", () => {
+  const backup = createDashboardBackup(
+    defaultTasks,
+    defaultActivities,
+    defaultRoutines,
+    defaultSettings,
+    "2026-06-24T00:00:00.000Z"
+  );
+  const parsed = parseDashboardBackup(JSON.stringify(backup));
+
+  assert.equal(parsed.ok, true);
+
+  if (parsed.ok) {
+    assert.equal("accountName" in parsed.backup.settings, false);
+    assert.equal("accountEmail" in parsed.backup.settings, false);
+  }
+});
+
+test("dashboard backup ignores legacy local account fields", () => {
+  const legacyBackup = {
+    version: 2,
+    exportedAt: "2026-06-24T00:00:00.000Z",
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    routines: defaultRoutines,
+    settings: {
+      ...defaultSettings,
+      accountName: "Pengguna Lama",
+      accountEmail: "lama@example.com"
+    }
+  };
+  const parsed = parseDashboardBackup(JSON.stringify(legacyBackup));
+
+  assert.equal(parsed.ok, true);
+
+  if (parsed.ok) {
+    assert.equal(parsed.backup.settings.dashboardName, defaultSettings.dashboardName);
+    assert.equal("accountName" in parsed.backup.settings, false);
+    assert.equal("accountEmail" in parsed.backup.settings, false);
   }
 });
 

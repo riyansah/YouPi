@@ -64,7 +64,7 @@ export default function ReportsPage() {
         <div>
           <p className="text-sm font-medium text-teal-700">Laporan</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">Laporan Produktivitas</h1>
-          <p className="mt-2 text-sm text-slate-500">Ringkasan harian, mingguan, dan bulanan dari data lokal.</p>
+          <p className="mt-2 text-sm text-slate-500">Ringkasan harian, mingguan, dan bulanan dari data pribadi.</p>
         </div>
         <button
           type="button"

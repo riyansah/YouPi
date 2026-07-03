@@ -57,8 +57,6 @@ export interface DashboardSettings {
   dashboardName: string;
   theme: ThemePreference;
   preferredCategories: ActivityCategory[];
-  accountName: string;
-  accountEmail: string;
 }
 
 export interface TaskSummary {

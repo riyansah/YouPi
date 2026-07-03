@@ -23,7 +23,7 @@ export function createDashboardBackup(
     tasks,
     activities,
     routines,
-    settings
+    settings: normalizeDashboardSettings(settings)
   };
 }
 
@@ -62,7 +62,7 @@ export function parseDashboardBackup(value: string): { ok: true; backup: Dashboa
         tasks: parsed.tasks,
         activities: parsed.activities,
         routines,
-        settings: parsed.settings
+        settings: normalizeDashboardSettings(parsed.settings)
       }
     };
   } catch {
@@ -70,7 +70,7 @@ export function parseDashboardBackup(value: string): { ok: true; backup: Dashboa
   }
 }
 
-function isTask(value: unknown): value is Task {
+export function isTask(value: unknown): value is Task {
   if (!isRecord(value)) {
     return false;
   }
@@ -89,7 +89,7 @@ function isTask(value: unknown): value is Task {
   );
 }
 
-function isActivity(value: unknown): value is Activity {
+export function isActivity(value: unknown): value is Activity {
   if (!isRecord(value)) {
     return false;
   }
@@ -108,7 +108,7 @@ function isActivity(value: unknown): value is Activity {
   );
 }
 
-function isRoutine(value: unknown): value is Routine {
+export function isRoutine(value: unknown): value is Routine {
   if (!isRecord(value) || !Array.isArray(value.days)) {
     return false;
   }
@@ -126,15 +126,21 @@ function isRoutine(value: unknown): value is Routine {
   );
 }
 
-function isDashboardSettings(value: unknown): value is DashboardSettings {
+function normalizeDashboardSettings(settings: DashboardSettings): DashboardSettings {
+  return {
+    dashboardName: settings.dashboardName,
+    theme: settings.theme,
+    preferredCategories: settings.preferredCategories
+  };
+}
+
+export function isDashboardSettings(value: unknown): value is DashboardSettings {
   if (!isRecord(value) || !Array.isArray(value.preferredCategories)) {
     return false;
   }
 
   return (
     isString(value.dashboardName) &&
-    isString(value.accountName) &&
-    isString(value.accountEmail) &&
     includesValue(["Terang", "Gelap", "Sistem"], value.theme) &&
     value.preferredCategories.every((category) => includesValue(activityCategories, category))
   );

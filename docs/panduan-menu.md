@@ -1,6 +1,6 @@
 # Panduan Menu Personal Activity Dashboard
 
-Panduan ini membantu pengguna memahami fungsi setiap menu pada aplikasi `Personal Activity Dashboard`, mulai dari halaman utama dashboard sampai pengaturan data lokal.
+Panduan ini membantu pengguna memahami fungsi setiap menu pada aplikasi `Personal Activity Dashboard`, mulai dari halaman utama dashboard sampai pengaturan data pribadi.
 
 ## Gambaran Umum Aplikasi
 
@@ -10,9 +10,9 @@ Personal Activity Dashboard adalah aplikasi untuk:
 - mencatat aktivitas harian,
 - melihat ringkasan progress,
 - membuat laporan produktivitas,
-- dan mengelola backup data lokal.
+- dan mengelola backup data pribadi.
 
-Semua data disimpan secara lokal di browser. Artinya, perubahan yang Anda buat akan tetap ada saat halaman dibuka ulang pada browser yang sama, selama data browser tidak dihapus.
+Semua data pribadi disimpan di SQLite pada server dan hanya bisa dibuka setelah login.
 
 ## Struktur Menu Utama
 
@@ -167,7 +167,7 @@ Menu ini cocok dipakai saat Anda ingin:
 
 ## Pengaturan
 
-Halaman `Pengaturan` dipakai untuk mengelola preferensi dashboard dan data lokal.
+Halaman `Pengaturan` dipakai untuk mengelola preferensi dashboard dan data pribadi.
 
 ### Fungsi Utama Menu Pengaturan
 
@@ -176,19 +176,17 @@ Di halaman ini Anda bisa:
 - mengganti nama dashboard,
 - memilih tema tampilan,
 - mengatur preferensi kategori aktivitas,
-- mengubah nama akun lokal,
-- mengubah email lokal,
 - mengekspor backup JSON,
 - mengimpor backup JSON,
-- mereset data lokal ke data awal.
+- mengosongkan pekerjaan, aktivitas, dan rutinitas.
 
 ### Backup dan Reset
 
 Fitur backup dan reset penting untuk dipahami:
 
-- `Export JSON` membuat salinan data pekerjaan, aktivitas, dan preferensi.
+- `Export JSON` membuat salinan data pekerjaan, aktivitas, rutinitas, dan preferensi.
 - `Import JSON` memulihkan data dari file backup yang valid.
-- `Reset data` mengembalikan isi aplikasi ke data awal bawaan.
+- `Reset data` menghapus seluruh pekerjaan, aktivitas, dan rutinitas, lalu mengembalikan preferensi ke default.
 
 Sebelum impor atau reset, aplikasi akan meminta konfirmasi agar perubahan besar tidak terjadi tanpa sengaja.
 
@@ -213,6 +211,6 @@ Berikut alur penggunaan yang paling mudah untuk user baru:
 
 ## Catatan untuk Pengguna
 
-- Data aplikasi bersifat lokal di browser.
-- Jika browser dibersihkan atau storage dihapus, data lokal bisa hilang.
+- Data aplikasi bersifat pribadi dan membutuhkan login.
+- Pastikan file SQLite di server masuk strategi backup jika data penting.
 - Gunakan fitur backup JSON secara berkala bila data penting ingin disimpan.

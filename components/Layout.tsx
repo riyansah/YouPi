@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { DashboardDataProvider } from "@/lib/dashboard-store";
@@ -11,6 +12,11 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname === "/login" || pathname === "/register") {
+    return <>{children}</>;
+  }
 
   return (
     <DashboardDataProvider>

@@ -1,6 +1,90 @@
 # Changelog
 
 
+## 0.7.8 - 2026-07-03
+
+- Fixed login page Register navigation by allowing unauthenticated access to `/register`.
+
+
+## 0.7.7 - 2026-07-03
+
+- Changed the login page to always show the register link.
+
+
+## 0.7.6 - 2026-07-03
+
+- Added a register link on the login page when no account has been created yet.
+
+
+## 0.7.5 - 2026-07-03
+
+- Fixed the register page login link by allowing `/login` before the first account is registered.
+
+
+## 0.7.4 - 2026-07-03
+
+- Added live register validation, password visibility toggles, password strength feedback, and a login link.
+- Changed first-run register success to show a 5-second countdown before redirecting to login.
+- Added a dedicated change-password page from Settings with backend password validation and update support.
+
+
+## 0.7.3 - 2026-07-03
+
+- Added first-run register backed by SQLite auth storage.
+- Added database-backed rate limits for register and login attempts.
+- Changed login/session configuration to use generated database secrets instead of required `.env` credentials.
+- Added middleware redirects for register, login, authenticated pages, and protected API endpoints.
+
+
+## 0.7.2 - 2026-07-03
+
+- Added automated coverage for SQLite dashboard persistence across tasks, activities, routines, and settings.
+
+
+## 0.7.1 - 2026-07-03
+
+- Added `.env.example` with safe placeholders for private login and SQLite configuration.
+- Documented copying `.env.example` to `.env.local` before running the app.
+
+
+## 0.7.0 - 2026-07-03
+
+- Added single-user login with signed HTTP-only sessions for protected dashboard access.
+- Moved dashboard persistence from browser localStorage to server-side SQLite storage.
+- Added authenticated dashboard data API routes and logout support.
+- Changed reset behavior to keep the SQLite database empty after clearing personal data.
+
+
+## 0.6.0 - 2026-07-03
+
+- Made theme selection apply light, dark, and system display modes.
+- Connected preferred activity categories to the default activity filter.
+- Removed unused local account fields from settings and new backups.
+- Changed data reset to clear local tasks, activities, and routines instead of restoring sample data.
+
+## 0.5.5 - 2026-07-03
+
+- Changed the task status chart to a donut chart with a centered total and permanent status legend.
+
+## 0.5.4 - 2026-07-03
+
+- Added clickable dashboard summary cards that open filtered task and activity views.
+- Added always-visible labels to the task status chart.
+- Replaced the dashboard activity-per-day chart with a kegiatan-per-day chart combining activities and scheduled routines.
+
+## 0.5.3 - 2026-07-02
+
+- Replaced the time dropdowns with a custom analog clock picker using hour-then-minute selection and 5-minute minute choices.
+
+## 0.5.2 - 2026-07-02
+
+- Replaced start and end time inputs on activities and routines with fast 15-minute `HH:mm` dropdown choices.
+
+## 0.5.1 - 2026-07-02
+
+- Changed the launcher to use a cached production build by default for faster local dashboard startup.
+- Added `MODE=dev` launcher support for development hot reload and moved the root redirect into Next.js config.
+
 ## 0.5.0 - 2026-06-25
 
 - Added a new `Rutinitas` menu with local CRUD for weekly routines and backup support.

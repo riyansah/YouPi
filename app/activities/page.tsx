@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, RotateCcw, Save } from "lucide-react";
 import { Pagination } from "@/components/Pagination";
 import { ActivityList } from "@/components/ActivityList";
+import { TimePicker } from "@/components/TimePicker";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import type { Activity, ActivityCategory, ActivityStatus } from "@/lib/types";
 import { activityCategories, activityStatuses } from "@/lib/types";
@@ -23,13 +24,31 @@ const emptyActivityForm = {
   notes: ""
 };
 
+type ActivityCategoryFilter = "Semua" | "Preferensi" | ActivityCategory;
+
+function getCategoryFilterParam(value: string | null): ActivityCategoryFilter | null {
+  if (value === "Semua" || value === "Preferensi" || activityCategories.includes(value as ActivityCategory)) {
+    return value as ActivityCategoryFilter;
+  }
+
+  return null;
+}
+
+function getDateFilterParam(value: string | null) {
+  return value && value.length === 10 && value[4] === "-" && value[7] === "-" ? value : null;
+}
+
 function ActivitiesPageContent() {
-  const { activities, setActivities } = useDashboardStore();
+  const { activities, setActivities, settings } = useDashboardStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedActivityId = searchParams.get("activityId");
-  const [categoryFilter, setCategoryFilter] = useState<"Semua" | ActivityCategory>("Semua");
-  const [dateFilter, setDateFilter] = useState(todayDate());
+  const categoryQuery = getCategoryFilterParam(searchParams.get("category"));
+  const dateQuery = getDateFilterParam(searchParams.get("date"));
+  const [categoryFilter, setCategoryFilter] = useState<ActivityCategoryFilter>(() =>
+    categoryQuery || (settings.preferredCategories.length ? "Preferensi" : "Semua")
+  );
+  const [dateFilter, setDateFilter] = useState(() => dateQuery || todayDate());
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyActivityForm);
@@ -39,18 +58,36 @@ function ActivitiesPageContent() {
     () =>
       activities
         .filter((activity) => {
-          const categoryMatch = categoryFilter === "Semua" || activity.category === categoryFilter;
+          const categoryMatch =
+            categoryFilter === "Semua" ||
+            (categoryFilter === "Preferensi"
+              ? !settings.preferredCategories.length || settings.preferredCategories.includes(activity.category)
+              : activity.category === categoryFilter);
           const dateMatch = !dateFilter || activity.date === dateFilter;
           return categoryMatch && dateMatch;
         })
         .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [activities, categoryFilter, dateFilter]
+    [activities, categoryFilter, dateFilter, settings.preferredCategories]
   );
 
   const paginatedActivities = useMemo(
     () => paginateItems(filteredActivities, currentPage, pageSize),
     [currentPage, filteredActivities]
   );
+
+  useEffect(() => {
+    if (selectedActivityId) {
+      return;
+    }
+
+    if (categoryQuery && categoryFilter !== categoryQuery) {
+      setCategoryFilter(categoryQuery);
+    }
+
+    if (dateQuery && dateFilter !== dateQuery) {
+      setDateFilter(dateQuery);
+    }
+  }, [categoryFilter, categoryQuery, dateFilter, dateQuery, selectedActivityId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -259,26 +296,18 @@ function ActivitiesPageContent() {
               ))}
             </select>
           </label>
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Mulai</span>
-            <input
-              type="time"
-              required
-              value={form.startTime}
-              onChange={(event) => setForm((current) => ({ ...current, startTime: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Selesai</span>
-            <input
-              type="time"
-              required
-              value={form.endTime}
-              onChange={(event) => setForm((current) => ({ ...current, endTime: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-            />
-          </label>
+          <TimePicker
+            id="activity-start-time"
+            label="Mulai"
+            value={form.startTime}
+            onChange={(startTime) => setForm((current) => ({ ...current, startTime }))}
+          />
+          <TimePicker
+            id="activity-end-time"
+            label="Selesai"
+            value={form.endTime}
+            onChange={(endTime) => setForm((current) => ({ ...current, endTime }))}
+          />
           <label className="space-y-1 lg:col-span-2">
             <span className="text-sm font-medium text-slate-700">Catatan</span>
             <textarea
@@ -321,9 +350,10 @@ function ActivitiesPageContent() {
           <span className="text-sm font-medium text-slate-700">Filter kategori</span>
           <select
             value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value as "Semua" | ActivityCategory)}
+            onChange={(event) => setCategoryFilter(event.target.value as ActivityCategoryFilter)}
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
+            <option value="Preferensi">Preferensi</option>
             <option value="Semua">Semua</option>
             {activityCategories.map((category) => (
               <option key={category} value={category}>

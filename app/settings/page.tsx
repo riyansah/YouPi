@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { ChangeEvent, FormEvent, useState } from "react";
-import { Download, RotateCcw, Save, Upload } from "lucide-react";
+import { Download, KeyRound, RotateCcw, Save, Upload } from "lucide-react";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { defaultActivities, defaultRoutines, defaultSettings, defaultTasks } from "@/lib/data";
+import { defaultSettings } from "@/lib/data";
 import { createDashboardBackup, parseDashboardBackup } from "@/lib/storage";
 import type { ActivityCategory, ThemePreference } from "@/lib/types";
 import { activityCategories } from "@/lib/types";
@@ -11,7 +12,7 @@ import { activityCategories } from "@/lib/types";
 const themes: ThemePreference[] = ["Terang", "Gelap", "Sistem"];
 
 export default function SettingsPage() {
-  const { tasks, setTasks, activities, setActivities, routines, setRoutines, settings, setSettings } = useDashboardStore();
+  const { tasks, activities, routines, settings, setSettings, replaceDashboardData } = useDashboardStore();
   const [saved, setSaved] = useState(false);
   const [dataMessage, setDataMessage] = useState<string | null>(null);
 
@@ -60,27 +61,34 @@ export default function SettingsPage() {
       return;
     }
 
-    if (!window.confirm("Impor backup akan mengganti semua data lokal saat ini. Lanjutkan?")) {
+    if (!window.confirm("Impor backup akan mengganti semua data dashboard saat ini. Lanjutkan?")) {
       return;
     }
 
-    setTasks(parsed.backup.tasks);
-    setActivities(parsed.backup.activities);
-    setRoutines(parsed.backup.routines);
-    setSettings(parsed.backup.settings);
-    setDataMessage("Backup berhasil diimpor.");
+    try {
+      await replaceDashboardData({
+        tasks: parsed.backup.tasks,
+        activities: parsed.backup.activities,
+        routines: parsed.backup.routines,
+        settings: parsed.backup.settings
+      });
+      setDataMessage("Backup berhasil diimpor.");
+    } catch {
+      setDataMessage("Backup gagal diimpor.");
+    }
   }
 
-  function handleResetData() {
-    if (!window.confirm("Reset akan mengganti semua data lokal dengan data awal. Lanjutkan?")) {
+  async function handleResetData() {
+    if (!window.confirm("Hapus semua pekerjaan, aktivitas, dan rutinitas? Pengaturan akan kembali ke default.")) {
       return;
     }
 
-    setTasks(defaultTasks);
-    setActivities(defaultActivities);
-    setRoutines(defaultRoutines);
-    setSettings(defaultSettings);
-    setDataMessage("Data lokal dikembalikan ke data awal.");
+    try {
+      await replaceDashboardData({ tasks: [], activities: [], routines: [], settings: defaultSettings });
+      setDataMessage("Semua data berhasil dikosongkan.");
+    } catch {
+      setDataMessage("Data gagal dikosongkan.");
+    }
   }
 
   return (
@@ -88,7 +96,7 @@ export default function SettingsPage() {
       <div>
         <p className="text-sm font-medium text-teal-700">Pengaturan</p>
         <h1 className="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">Preferensi Dashboard</h1>
-        <p className="mt-2 text-sm text-slate-500">Pengaturan lokal sederhana tanpa login.</p>
+        <p className="mt-2 text-sm text-slate-500">Atur tampilan, kategori bawaan aktivitas, backup, dan reset data.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="grid gap-5 rounded border border-slate-200 bg-white p-5 shadow-sm">
@@ -118,6 +126,7 @@ export default function SettingsPage() {
 
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium text-slate-700">Preferensi kategori aktivitas</legend>
+          <p className="text-sm text-slate-500">Kategori pilihan dipakai oleh filter Preferensi di menu Aktivitas.</p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {activityCategories.map((category) => (
               <label key={category} className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 text-sm">
@@ -133,26 +142,6 @@ export default function SettingsPage() {
           </div>
         </fieldset>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Nama akun lokal</span>
-            <input
-              value={settings.accountName}
-              onChange={(event) => setSettings((current) => ({ ...current, accountName: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Email lokal</span>
-            <input
-              type="email"
-              value={settings.accountEmail}
-              onChange={(event) => setSettings((current) => ({ ...current, accountEmail: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-            />
-          </label>
-        </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
@@ -167,8 +156,24 @@ export default function SettingsPage() {
 
       <section className="grid gap-4 rounded border border-slate-200 bg-white p-5 shadow-sm">
         <div>
-          <h2 className="text-base font-semibold text-slate-950">Backup Data Lokal</h2>
-          <p className="mt-1 text-sm text-slate-500">Kelola salinan data pekerjaan, aktivitas, rutinitas, dan preferensi.</p>
+          <h2 className="text-base font-semibold text-slate-950">Keamanan Akun</h2>
+          <p className="mt-1 text-sm text-slate-500">Kelola password akun yang digunakan untuk masuk ke dashboard.</p>
+        </div>
+        <div>
+          <Link
+            href="/settings/change-password"
+            className="inline-flex items-center gap-2 rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            <KeyRound className="h-4 w-4" />
+            Ubah password
+          </Link>
+        </div>
+      </section>
+
+      <section className="grid gap-4 rounded border border-slate-200 bg-white p-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold text-slate-950">Backup Data</h2>
+          <p className="mt-1 text-sm text-slate-500">Kelola salinan data pekerjaan, aktivitas, rutinitas, dan preferensi pribadi.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button

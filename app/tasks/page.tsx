@@ -22,13 +22,22 @@ const emptyTaskForm = {
   deadline: todayDate()
 };
 
+function getStatusFilterParam(value: string | null): "Semua" | TaskStatus | null {
+  if (value === "Semua" || taskStatuses.includes(value as TaskStatus)) {
+    return value as "Semua" | TaskStatus;
+  }
+
+  return null;
+}
+
 function TasksPageContent() {
   const { tasks, setTasks } = useDashboardStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTaskId = searchParams.get("taskId");
+  const statusQuery = getStatusFilterParam(searchParams.get("status"));
   const now = useNow();
-  const [statusFilter, setStatusFilter] = useState<"Semua" | TaskStatus>("Semua");
+  const [statusFilter, setStatusFilter] = useState<"Semua" | TaskStatus>(() => statusQuery || "Semua");
   const [priorityFilter, setPriorityFilter] = useState<"Semua" | TaskPriority>("Semua");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,6 +58,12 @@ function TasksPageContent() {
     () => paginateItems(filteredTasks, currentPage, pageSize),
     [currentPage, filteredTasks]
   );
+
+  useEffect(() => {
+    if (!selectedTaskId && statusQuery && statusFilter !== statusQuery) {
+      setStatusFilter(statusQuery);
+    }
+  }, [selectedTaskId, statusFilter, statusQuery]);
 
   useEffect(() => {
     setCurrentPage(1);

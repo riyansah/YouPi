@@ -1,10 +1,5 @@
 import type { Activity, DashboardSettings, Routine, Task } from "@/lib/types";
 
-export const taskStorageKey = "personal-dashboard-tasks";
-export const activityStorageKey = "personal-dashboard-activities";
-export const routineStorageKey = "personal-dashboard-routines";
-export const settingsStorageKey = "personal-dashboard-settings";
-
 export const defaultTasks: Task[] = [
   {
     id: "task-1",
@@ -398,7 +393,5 @@ export const defaultRoutines: Routine[] = [
 export const defaultSettings: DashboardSettings = {
   dashboardName: "Dashboard Aktivitas Pribadi",
   theme: "Terang",
-  preferredCategories: ["Kerja", "Belajar", "Project Pribadi"],
-  accountName: "Pengguna Lokal",
-  accountEmail: "local@example.com"
+  preferredCategories: ["Kerja", "Belajar", "Project Pribadi"]
 };

@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Edit2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { Pagination } from "@/components/Pagination";
+import { TimePicker } from "@/components/TimePicker";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import type { Routine, TaskPriority, Weekday } from "@/lib/types";
 import { taskPriorities, weekdays } from "@/lib/types";
@@ -213,26 +214,18 @@ function RoutinesPageContent() {
               ))}
             </div>
           </fieldset>
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Mulai</span>
-            <input
-              type="time"
-              required
-              value={form.startTime}
-              onChange={(event) => setForm((current) => ({ ...current, startTime: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Selesai</span>
-            <input
-              type="time"
-              required
-              value={form.endTime}
-              onChange={(event) => setForm((current) => ({ ...current, endTime: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-            />
-          </label>
+          <TimePicker
+            id="routine-start-time"
+            label="Mulai"
+            value={form.startTime}
+            onChange={(startTime) => setForm((current) => ({ ...current, startTime }))}
+          />
+          <TimePicker
+            id="routine-end-time"
+            label="Selesai"
+            value={form.endTime}
+            onChange={(endTime) => setForm((current) => ({ ...current, endTime }))}
+          />
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">Prioritas</span>
             <select

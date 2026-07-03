@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Activity as ActivityIcon, CheckCircle2, Clock3, ListTodo, PauseCircle, Percent } from "lucide-react";
 import { Pagination } from "@/components/Pagination";
-import { ActivityPerDayChart, TaskStatusChart, WeeklyProgressChart } from "@/components/Charts";
+import { DailyActivityChart, TaskStatusChart, WeeklyProgressChart } from "@/components/Charts";
 import { StatCard } from "@/components/StatCard";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import {
@@ -86,17 +86,23 @@ export default function DashboardPage() {
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard title="Total pekerjaan" value={taskSummary.total} icon={ListTodo} tone="slate" />
-        <StatCard title="Sedang berjalan" value={taskSummary.running} icon={Clock3} tone="blue" />
-        <StatCard title="Pekerjaan selesai" value={taskSummary.completed} icon={CheckCircle2} tone="teal" />
-        <StatCard title="Pekerjaan tertunda" value={taskSummary.pending} icon={PauseCircle} tone="amber" />
-        <StatCard title="Aktivitas hari ini" value={activitySummary.today} icon={ActivityIcon} tone="blue" />
+        <StatCard title="Total pekerjaan" value={taskSummary.total} href="/tasks?status=Semua" icon={ListTodo} tone="slate" />
+        <StatCard title="Sedang berjalan" value={taskSummary.running} href="/tasks?status=Berjalan" icon={Clock3} tone="blue" />
+        <StatCard title="Pekerjaan selesai" value={taskSummary.completed} href="/tasks?status=Selesai" icon={CheckCircle2} tone="teal" />
+        <StatCard title="Pekerjaan tertunda" value={taskSummary.pending} href="/tasks?status=Tertunda" icon={PauseCircle} tone="amber" />
+        <StatCard
+          title="Aktivitas hari ini"
+          value={activitySummary.today}
+          href={"/activities?date=" + todayDate() + "&category=Semua"}
+          icon={ActivityIcon}
+          tone="blue"
+        />
         <StatCard title="Progress penyelesaian" value={`${taskSummary.completionRate}%`} icon={Percent} tone="teal" />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-3">
         <TaskStatusChart tasks={tasks} />
-        <ActivityPerDayChart activities={activities} />
+        <DailyActivityChart activities={activities} routines={routines} />
         <WeeklyProgressChart tasks={tasks} />
       </section>
 

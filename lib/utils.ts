@@ -292,32 +292,6 @@ export function sortTasksByNearestDeadline(tasks: Task[]) {
     );
 }
 
-export function useLocalStorageState<T>(key: string, fallback: T) {
-  const [value, setValue] = useState<T>(fallback);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(key);
-
-    if (stored) {
-      try {
-        setValue(JSON.parse(stored) as T);
-      } catch {
-        setValue(fallback);
-      }
-    }
-
-    setLoaded(true);
-  }, [fallback, key]);
-
-  useEffect(() => {
-    if (loaded) {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    }
-  }, [key, loaded, value]);
-
-  return [value, setValue] as const;
-}
 
 export function summarizeTasks(tasks: Task[]): TaskSummary {
   const total = tasks.length;
@@ -383,6 +357,29 @@ export function activityPerDayChartData(activities: Activity[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-7)
     .map(([date, total]) => ({ date: formatDate(date), total }));
+}
+
+export function dailyActivityChartData(activities: Activity[], routines: Routine[], referenceDate = todayDate()) {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(referenceDate + "T00:00:00");
+    date.setDate(date.getDate() - (6 - index));
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
+  });
+
+  return days.map((date) => {
+    const activityTotal = activities.filter((activity) => activity.date === date).length;
+    const routineTotal = routines.filter((routine) => isRoutineScheduledForDate(routine, date)).length;
+
+    return {
+      date: formatDate(date),
+      total: activityTotal + routineTotal,
+      activities: activityTotal,
+      routines: routineTotal
+    };
+  });
 }
 
 export function weeklyProgressData(tasks: Task[]) {
