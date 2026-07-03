@@ -9,6 +9,8 @@ export const defaultTasks: Task[] = [
     priority: "Tinggi",
     startDate: "2026-06-22",
     deadline: "2026-06-28",
+    startTime: null,
+    endTime: null,
     completedAt: null,
     createdAt: "2026-06-22T08:00:00.000Z",
     updatedAt: "2026-06-22T08:00:00.000Z"
@@ -21,6 +23,8 @@ export const defaultTasks: Task[] = [
     priority: "Sedang",
     startDate: "2026-06-20",
     deadline: "2026-06-23",
+    startTime: "09:00",
+    endTime: "10:30",
     completedAt: "2026-06-23T10:30:00.000Z",
     createdAt: "2026-06-20T09:00:00.000Z",
     updatedAt: "2026-06-23T10:30:00.000Z"
@@ -33,6 +37,8 @@ export const defaultTasks: Task[] = [
     priority: "Rendah",
     startDate: "2026-06-18",
     deadline: "2026-06-24",
+    startTime: null,
+    endTime: null,
     completedAt: null,
     createdAt: "2026-06-18T13:00:00.000Z",
     updatedAt: "2026-06-21T11:00:00.000Z"
@@ -45,6 +51,8 @@ export const defaultTasks: Task[] = [
     priority: "Sedang",
     startDate: "2026-06-23",
     deadline: "2026-06-23",
+    startTime: "15:00",
+    endTime: "17:00",
     completedAt: null,
     createdAt: "2026-06-23T07:30:00.000Z",
     updatedAt: "2026-06-23T07:30:00.000Z"
@@ -57,6 +65,8 @@ export const defaultTasks: Task[] = [
     priority: "Tinggi",
     startDate: "2026-06-17",
     deadline: "2026-06-21",
+    startTime: null,
+    endTime: null,
     completedAt: "2026-06-21T15:00:00.000Z",
     createdAt: "2026-06-17T09:15:00.000Z",
     updatedAt: "2026-06-21T15:00:00.000Z"
@@ -69,6 +79,8 @@ export const defaultTasks: Task[] = [
     priority: "Sedang",
     startDate: "2026-06-19",
     deadline: "2026-06-25",
+    startTime: "07:00",
+    endTime: "08:00",
     completedAt: null,
     createdAt: "2026-06-19T06:45:00.000Z",
     updatedAt: "2026-06-22T08:10:00.000Z"
@@ -81,6 +93,8 @@ export const defaultTasks: Task[] = [
     priority: "Rendah",
     startDate: "2026-06-21",
     deadline: "2026-06-30",
+    startTime: null,
+    endTime: null,
     completedAt: null,
     createdAt: "2026-06-21T12:20:00.000Z",
     updatedAt: "2026-06-23T09:00:00.000Z"
@@ -93,6 +107,8 @@ export const defaultTasks: Task[] = [
     priority: "Rendah",
     startDate: "2026-06-15",
     deadline: "2026-06-20",
+    startTime: null,
+    endTime: null,
     completedAt: null,
     createdAt: "2026-06-15T10:00:00.000Z",
     updatedAt: "2026-06-20T16:30:00.000Z"

@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Edit2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { useAppFeedback } from "@/components/AppFeedback";
 import { Pagination } from "@/components/Pagination";
 import { TimePicker } from "@/components/TimePicker";
 import { useDashboardStore } from "@/lib/dashboard-store";
@@ -24,9 +25,9 @@ import { validateRoutineForm } from "@/lib/validation";
 const pageSize = 10;
 
 const priorityStyles = {
-  Rendah: "bg-slate-100 text-slate-700",
-  Sedang: "bg-blue-50 text-blue-700",
-  Tinggi: "bg-rose-50 text-rose-700"
+  Rendah: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100",
+  Sedang: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100",
+  Tinggi: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-100"
 };
 
 const emptyRoutineForm = {
@@ -40,6 +41,7 @@ const emptyRoutineForm = {
 
 function RoutinesPageContent() {
   const { routines, setRoutines } = useDashboardStore();
+  const { confirm, showToast } = useAppFeedback();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedRoutineId = searchParams.get("routineId");
@@ -137,6 +139,7 @@ function RoutinesPageContent() {
         updatedAt: timestamp
       };
       setRoutines((current) => [routine, ...current]);
+      showToast({ message: `Rutinitas "${routine.title}" berhasil ditambahkan.` });
     }
 
     resetForm();
@@ -155,34 +158,41 @@ function RoutinesPageContent() {
     setFormErrors([]);
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const routine = routines.find((item) => item.id === id);
+    const confirmed = await confirm({
+      title: "Hapus rutinitas?",
+      description: `Rutinitas \"${routine?.title || "ini"}\" akan dihapus permanen dari dashboard.`,
+      confirmLabel: "Hapus",
+      tone: "danger"
+    });
 
-    if (!window.confirm(`Hapus rutinitas "${routine?.title || "ini"}"?`)) {
+    if (!confirmed) {
       return;
     }
 
-    setRoutines((current) => current.filter((routine) => routine.id !== id));
+    setRoutines((current) => current.filter((item) => item.id !== id));
     if (editingId === id) {
       resetForm();
     }
+    showToast({ message: `Rutinitas "${routine?.title || "ini"}" berhasil dihapus.` });
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-teal-700">Rutinitas</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">Rutinitas Mingguan</h1>
-        <p className="mt-2 text-sm text-slate-500">Kelola rutinitas harian dari Senin sampai Minggu.</p>
+        <p className="text-sm font-medium text-teal-700 dark:text-teal-300">Rutinitas</p>
+        <h1 className="mt-1 text-2xl font-bold text-slate-950 dark:text-slate-50 sm:text-3xl">Rutinitas Mingguan</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Kelola rutinitas harian dari Senin sampai Minggu.</p>
       </div>
 
-      <section className="rounded border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-4 flex items-center gap-2">
-          <Plus className="h-5 w-5 text-teal-700" />
-          <h2 className="text-base font-semibold text-slate-950">{editingId ? "Edit Rutinitas" : "Tambah Rutinitas"}</h2>
+          <Plus className="h-5 w-5 text-teal-700 dark:text-teal-300" />
+          <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{editingId ? "Edit Rutinitas" : "Tambah Rutinitas"}</h2>
         </div>
         {formErrors.length ? (
-          <div className="mb-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <div className="mb-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200">
             {formErrors.map((error) => (
               <p key={error}>{error}</p>
             ))}
@@ -190,48 +200,33 @@ function RoutinesPageContent() {
         ) : null}
         <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-1 lg:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Judul</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Judul</span>
             <input
               required
               value={form.title}
               onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
           <fieldset className="space-y-2 lg:col-span-2">
-            <legend className="text-sm font-medium text-slate-700">Hari aktif</legend>
+            <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">Hari aktif</legend>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {weekdays.map((day) => (
-                <label key={day} className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.days.includes(day)}
-                    onChange={() => toggleDay(day)}
-                    className="h-4 w-4 accent-teal-700"
-                  />
+                <label key={day} className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:text-slate-200">
+                  <input type="checkbox" checked={form.days.includes(day)} onChange={() => toggleDay(day)} className="h-4 w-4 accent-teal-700" />
                   <span>{day}</span>
                 </label>
               ))}
             </div>
           </fieldset>
-          <TimePicker
-            id="routine-start-time"
-            label="Mulai"
-            value={form.startTime}
-            onChange={(startTime) => setForm((current) => ({ ...current, startTime }))}
-          />
-          <TimePicker
-            id="routine-end-time"
-            label="Selesai"
-            value={form.endTime}
-            onChange={(endTime) => setForm((current) => ({ ...current, endTime }))}
-          />
+          <TimePicker id="routine-start-time" label="Mulai" value={form.startTime} onChange={(startTime) => setForm((current) => ({ ...current, startTime }))} />
+          <TimePicker id="routine-end-time" label="Selesai" value={form.endTime} onChange={(endTime) => setForm((current) => ({ ...current, endTime }))} />
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Prioritas</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Prioritas</span>
             <select
               value={form.priority}
               onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
               {taskPriorities.map((priority) => (
                 <option key={priority} value={priority}>
@@ -241,25 +236,22 @@ function RoutinesPageContent() {
             </select>
           </label>
           <label className="space-y-1 lg:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Catatan</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Catatan</span>
             <textarea
               value={form.notes}
               onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
           <div className="flex flex-wrap gap-2 lg:col-span-2">
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800"
-            >
+            <button type="submit" className="inline-flex items-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">
               <Save className="h-4 w-4" />
               {editingId ? "Simpan perubahan" : "Tambah rutinitas"}
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center gap-2 rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <RotateCcw className="h-4 w-4" />
               Reset
@@ -271,28 +263,23 @@ function RoutinesPageContent() {
       {paginatedRoutines.totalItems ? (
         <div className="space-y-3">
           {paginatedRoutines.items.map((routine) => (
-            <article
-              key={routine.id}
-              className="rounded border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50"
-            >
+            <article key={routine.id} className="rounded border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/70">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-semibold text-slate-950">{routine.title}</h2>
-                    <span className={cn("rounded px-2 py-1 text-xs font-semibold", priorityStyles[routine.priority])}>
-                      {routine.priority}
-                    </span>
+                    <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{routine.title}</h2>
+                    <span className={cn("rounded px-2 py-1 text-xs font-semibold", priorityStyles[routine.priority])}>{routine.priority}</span>
                   </div>
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                     {formatRoutineDays(routine.days)} · {formatTimeRange(routine.startTime, routine.endTime)}
                   </p>
-                  {routine.notes ? <p className="mt-2 text-sm text-slate-600">{routine.notes}</p> : null}
+                  {routine.notes ? <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{routine.notes}</p> : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleEdit(routine)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                     aria-label={`Edit ${routine.title}`}
                   >
                     <Edit2 className="h-4 w-4" />
@@ -300,7 +287,7 @@ function RoutinesPageContent() {
                   <button
                     type="button"
                     onClick={() => handleDelete(routine.id)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-200 dark:hover:bg-rose-950/50"
                     aria-label={`Hapus ${routine.title}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -311,7 +298,7 @@ function RoutinesPageContent() {
           ))}
         </div>
       ) : (
-        <div className="rounded border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+        <div className="rounded border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           Belum ada rutinitas yang tersimpan.
         </div>
       )}

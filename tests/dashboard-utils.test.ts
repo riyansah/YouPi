@@ -9,10 +9,13 @@ import {
   buildTodayAgendaItems,
   dailyActivityChartData,
   filterByReportPeriod,
+  filterTasksByReportPeriod,
   formatDeadlineCountdown,
   getDeadlineCountdownState,
   getDeadlineCountdownTone,
   paginateItems,
+  reportActivityChartData,
+  reportTaskProgressChartData,
   sortRoutines,
   sortTasksByNearestDeadline,
   summarizeActivities,
@@ -316,10 +319,56 @@ test("validateTaskForm rejects invalid date order", () => {
     status: "Berjalan",
     priority: "Sedang",
     startDate: "2026-06-24",
-    deadline: "2026-06-23"
+    deadline: "2026-06-23",
+    startTime: null,
+    endTime: null
   });
 
   assert.deepEqual(errors, ["Deadline tidak boleh lebih awal dari tanggal mulai."]);
+});
+
+test("validateTaskForm rejects partial or invalid optional time ranges", () => {
+  assert.deepEqual(
+    validateTaskForm({
+      title: "Tes",
+      description: "Valid description",
+      status: "Berjalan",
+      priority: "Sedang",
+      startDate: "2026-06-24",
+      deadline: "2026-06-24",
+      startTime: "09:00",
+      endTime: null
+    }),
+    ["Jam mulai dan jam selesai harus diisi bersamaan atau dikosongkan keduanya."]
+  );
+
+  assert.deepEqual(
+    validateTaskForm({
+      title: "Tes",
+      description: "Valid description",
+      status: "Berjalan",
+      priority: "Sedang",
+      startDate: "2026-06-24",
+      deadline: "2026-06-24",
+      startTime: "09:00",
+      endTime: "08:00"
+    }),
+    ["Jam selesai harus lebih besar dari jam mulai."]
+  );
+
+  assert.deepEqual(
+    validateTaskForm({
+      title: "Tes",
+      description: "Valid description",
+      status: "Berjalan",
+      priority: "Sedang",
+      startDate: "2026-06-24",
+      deadline: "2026-06-24",
+      startTime: null,
+      endTime: null
+    }),
+    []
+  );
 });
 
 test("validateActivityForm rejects invalid time order", () => {
@@ -453,4 +502,24 @@ test("navigation routes have matching app pages", () => {
     const pagePath = join(process.cwd(), "app", route.href.slice(1), "page.tsx");
     assert.equal(existsSync(pagePath), true, `${route.href} should have a page file`);
   }
+});
+
+test("formatDeadlineCountdown uses task end time when provided", () => {
+  const now = new Date(2026, 5, 24, 16, 30, 0, 0).getTime();
+
+  assert.equal(formatDeadlineCountdown("2026-06-24", now, "17:00"), "00:00:30:59");
+});
+
+test("report chart datasets follow the active period buckets", () => {
+  const activityData = reportActivityChartData(defaultActivities, "2026-06-23", "Harian");
+  const progressData = reportTaskProgressChartData(defaultTasks, "2026-06-23", "Harian");
+
+  assert.deepEqual(activityData, [{ date: "23 Jun 2026", total: 7 }]);
+  assert.deepEqual(progressData, [{ date: "23 Jun 2026", completed: 1 }]);
+});
+
+test("filterTasksByReportPeriod filters by deadline instead of createdAt", () => {
+  const filtered = filterTasksByReportPeriod(defaultTasks, "2026-06-23", "Harian");
+
+  assert.deepEqual(filtered.map((task) => task.id), ["task-2", "task-4"]);
 });

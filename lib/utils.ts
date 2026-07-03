@@ -104,7 +104,18 @@ export function formatTimeRange(startTime: string, endTime: string) {
   return `${startTime} - ${endTime}`;
 }
 
-export function getDeadlineTimestamp(value: string) {
+function toDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function getDeadlineTimestamp(value: string, endTime?: string | null) {
+  if (endTime) {
+    return new Date(`${value}T${endTime}:59.999`).getTime();
+  }
+
   return new Date(`${value}T23:59:59.999`).getTime();
 }
 
@@ -143,8 +154,8 @@ function formatOverdueCompact(days: number, hours: number, minutes: number) {
   return `Terlambat ${padCountdown(minutes)} Menit`;
 }
 
-export function getDeadlineCountdownTone(value: string, now = Date.now()): CountdownTone {
-  const diff = getDeadlineTimestamp(value) - now;
+export function getDeadlineCountdownTone(value: string, now = Date.now(), endTime?: string | null): CountdownTone {
+  const diff = getDeadlineTimestamp(value, endTime) - now;
 
   if (diff < 86400000) {
     return "red";
@@ -157,8 +168,8 @@ export function getDeadlineCountdownTone(value: string, now = Date.now()): Count
   return "green";
 }
 
-export function getDeadlineCountdownState(value: string, now = Date.now()): DeadlineCountdownState {
-  const diff = getDeadlineTimestamp(value) - now;
+export function getDeadlineCountdownState(value: string, now = Date.now(), endTime?: string | null): DeadlineCountdownState {
+  const diff = getDeadlineTimestamp(value, endTime) - now;
   const { days, hours, minutes, seconds } = getCountdownParts(diff);
   const detail = `${days} hari ${hours} jam ${minutes} menit ${seconds} detik`;
 
@@ -169,12 +180,12 @@ export function getDeadlineCountdownState(value: string, now = Date.now()): Dead
         ? `${padCountdown(days)}:${padCountdown(hours)}:${padCountdown(minutes)}:${padCountdown(seconds)}`
         : formatOverdueCompact(days, hours, minutes),
     isOverdue: diff < 0,
-    tone: getDeadlineCountdownTone(value, now)
+    tone: getDeadlineCountdownTone(value, now, endTime)
   };
 }
 
-export function formatDeadlineCountdown(value: string, now = Date.now()) {
-  return getDeadlineCountdownState(value, now).displayLabel;
+export function formatDeadlineCountdown(value: string, now = Date.now(), endTime?: string | null) {
+  return getDeadlineCountdownState(value, now, endTime).displayLabel;
 }
 
 export function getWeekdayFromDate(value: string): Weekday {
@@ -288,7 +299,7 @@ export function sortTasksByNearestDeadline(tasks: Task[]) {
   return [...tasks]
     .filter((task) => task.status !== "Selesai" && task.status !== "Dibatalkan")
     .sort(
-      (a, b) => getDeadlineTimestamp(a.deadline) - getDeadlineTimestamp(b.deadline) || a.createdAt.localeCompare(b.createdAt)
+      (a, b) => getDeadlineTimestamp(a.deadline, a.endTime) - getDeadlineTimestamp(b.deadline, b.endTime) || a.createdAt.localeCompare(b.createdAt)
     );
 }
 
@@ -357,6 +368,78 @@ export function activityPerDayChartData(activities: Activity[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-7)
     .map(([date, total]) => ({ date: formatDate(date), total }));
+}
+
+function buildReportDates(selectedDate: string, period: ReportPeriod) {
+  if (period === "Harian") {
+    return [selectedDate];
+  }
+
+  if (period === "Bulanan") {
+    const base = new Date(`${selectedDate}T00:00:00`);
+    const daysInMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+
+    return Array.from({ length: daysInMonth }, (_, index) => {
+      const date = new Date(base.getFullYear(), base.getMonth(), index + 1);
+      return toDateString(date);
+    });
+  }
+
+  const selected = new Date(`${selectedDate}T00:00:00`);
+  const day = selected.getDay();
+  const diffToMonday = day === 0 ? 6 : day - 1;
+  const start = new Date(selected);
+  start.setDate(selected.getDate() - diffToMonday);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return toDateString(date);
+  });
+}
+
+export function getReportPeriodLabel(period: ReportPeriod) {
+  if (period === "Harian") {
+    return "Hari Ini";
+  }
+
+  if (period === "Bulanan") {
+    return "Bulan Ini";
+  }
+
+  return "Minggu Ini";
+}
+
+export function getReportChartTitle(baseTitle: string, period: ReportPeriod) {
+  return `${baseTitle} ${getReportPeriodLabel(period)}`;
+}
+
+export function reportActivityChartData(activities: Activity[], selectedDate: string, period: ReportPeriod) {
+  return buildReportDates(selectedDate, period).map((date) => ({
+    date: formatDate(date),
+    total: activities.filter((activity) => activity.date === date).length
+  }));
+}
+
+export function reportTaskProgressChartData(tasks: Task[], selectedDate: string, period: ReportPeriod) {
+  return buildReportDates(selectedDate, period).map((date) => ({
+    date: formatDate(date),
+    completed: tasks.filter((task) => task.completedAt?.slice(0, 10) === date).length
+  }));
+}
+
+export function filterTasksByReportPeriod(tasks: Task[], selectedDate: string, period: ReportPeriod) {
+  return tasks.filter((task) => {
+    if (period === "Harian") {
+      return task.deadline === selectedDate;
+    }
+
+    if (period === "Bulanan") {
+      return task.deadline.slice(0, 7) === selectedDate.slice(0, 7);
+    }
+
+    return getWeekKey(task.deadline) === getWeekKey(selectedDate);
+  });
 }
 
 export function dailyActivityChartData(activities: Activity[], routines: Routine[], referenceDate = todayDate()) {

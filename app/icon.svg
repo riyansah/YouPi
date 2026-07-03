@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Activity Dashboard">
+  <rect width="64" height="64" rx="14" fill="#0f766e"/>
+  <path d="M18 14h28a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6V20a6 6 0 0 1 6-6Z" fill="#f8fafc"/>
+  <path d="M12 22h40v8H12v-8Z" fill="#134e4a"/>
+  <path d="M21 11v8M43 11v8" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M23 39l6 6 14-16" fill="none" stroke="#0f766e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M43 42h5v8h-5zM35 36h5v14h-5z" fill="#f59e0b"/>
+</svg>

@@ -3,8 +3,9 @@
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, RotateCcw, Save } from "lucide-react";
-import { Pagination } from "@/components/Pagination";
+import { useAppFeedback } from "@/components/AppFeedback";
 import { ActivityList } from "@/components/ActivityList";
+import { Pagination } from "@/components/Pagination";
 import { TimePicker } from "@/components/TimePicker";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import type { Activity, ActivityCategory, ActivityStatus } from "@/lib/types";
@@ -40,13 +41,14 @@ function getDateFilterParam(value: string | null) {
 
 function ActivitiesPageContent() {
   const { activities, setActivities, settings } = useDashboardStore();
+  const { confirm, showToast } = useAppFeedback();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedActivityId = searchParams.get("activityId");
   const categoryQuery = getCategoryFilterParam(searchParams.get("category"));
   const dateQuery = getDateFilterParam(searchParams.get("date"));
-  const [categoryFilter, setCategoryFilter] = useState<ActivityCategoryFilter>(() =>
-    categoryQuery || (settings.preferredCategories.length ? "Preferensi" : "Semua")
+  const [categoryFilter, setCategoryFilter] = useState<ActivityCategoryFilter>(
+    () => categoryQuery || (settings.preferredCategories.length ? "Preferensi" : "Semua")
   );
   const [dateFilter, setDateFilter] = useState(() => dateQuery || todayDate());
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,10 +72,7 @@ function ActivitiesPageContent() {
     [activities, categoryFilter, dateFilter, settings.preferredCategories]
   );
 
-  const paginatedActivities = useMemo(
-    () => paginateItems(filteredActivities, currentPage, pageSize),
-    [currentPage, filteredActivities]
-  );
+  const paginatedActivities = useMemo(() => paginateItems(filteredActivities, currentPage, pageSize), [currentPage, filteredActivities]);
 
   useEffect(() => {
     if (selectedActivityId) {
@@ -120,9 +119,7 @@ function ActivitiesPageContent() {
       return;
     }
 
-    const orderedActivities = activities
-      .filter((item) => item.date === activity.date)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const orderedActivities = activities.filter((item) => item.date === activity.date).sort((a, b) => a.startTime.localeCompare(b.startTime));
     const targetIndex = orderedActivities.findIndex((item) => item.id === activity.id);
     const targetPage = Math.floor(targetIndex / pageSize) + 1;
 
@@ -186,6 +183,7 @@ function ActivitiesPageContent() {
         updatedAt: timestamp
       };
       setActivities((current) => [activity, ...current]);
+      showToast({ message: `Aktivitas "${activity.title}" berhasil ditambahkan.` });
     }
 
     resetForm();
@@ -204,24 +202,35 @@ function ActivitiesPageContent() {
     });
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const activity = activities.find((item) => item.id === id);
+    const confirmed = await confirm({
+      title: "Hapus aktivitas?",
+      description: `Aktivitas \"${activity?.title || "ini"}\" akan dihapus permanen dari dashboard.`,
+      confirmLabel: "Hapus",
+      tone: "danger"
+    });
 
-    if (!window.confirm(`Hapus aktivitas "${activity?.title || "ini"}"?`)) {
+    if (!confirmed) {
       return;
     }
 
-    setActivities((current) => current.filter((activity) => activity.id !== id));
+    setActivities((current) => current.filter((item) => item.id !== id));
     if (editingId === id) {
       resetForm();
     }
+    showToast({ message: `Aktivitas "${activity?.title || "ini"}" berhasil dihapus.` });
   }
 
   function handleStatusChange(id: string, status: ActivityStatus) {
+    const activity = activities.find((item) => item.id === id);
+    const justCompleted = activity && activity.status !== "Selesai" && status === "Selesai";
     const timestamp = nowIso();
-    setActivities((current) =>
-      current.map((activity) => (activity.id === id ? { ...activity, status, updatedAt: timestamp } : activity))
-    );
+    setActivities((current) => current.map((item) => (item.id === id ? { ...item, status, updatedAt: timestamp } : item)));
+
+    if (justCompleted) {
+      showToast({ message: `Aktivitas "${activity.title}" diselesaikan.` });
+    }
   }
 
   function handleComplete(id: string) {
@@ -231,18 +240,18 @@ function ActivitiesPageContent() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-teal-700">Aktivitas Harian</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">Catatan Aktivitas</h1>
-        <p className="mt-2 text-sm text-slate-500">Kelola aktivitas berdasarkan tanggal, kategori, dan status.</p>
+        <p className="text-sm font-medium text-teal-700 dark:text-teal-300">Aktivitas Harian</p>
+        <h1 className="mt-1 text-2xl font-bold text-slate-950 dark:text-slate-50 sm:text-3xl">Catatan Aktivitas</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Kelola aktivitas berdasarkan tanggal, kategori, dan status.</p>
       </div>
 
-      <section className="rounded border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-4 flex items-center gap-2">
-          <Plus className="h-5 w-5 text-teal-700" />
-          <h2 className="text-base font-semibold text-slate-950">{editingId ? "Edit Aktivitas" : "Tambah Aktivitas"}</h2>
+          <Plus className="h-5 w-5 text-teal-700 dark:text-teal-300" />
+          <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{editingId ? "Edit Aktivitas" : "Tambah Aktivitas"}</h2>
         </div>
         {formErrors.length ? (
-          <div className="mb-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <div className="mb-4 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200">
             {formErrors.map((error) => (
               <p key={error}>{error}</p>
             ))}
@@ -250,20 +259,20 @@ function ActivitiesPageContent() {
         ) : null}
         <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Judul</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Judul</span>
             <input
               required
               value={form.title}
               onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Kategori</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Kategori</span>
             <select
               value={form.category}
               onChange={(event) => setForm((current) => ({ ...current, category: event.target.value as ActivityCategory }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
               {activityCategories.map((category) => (
                 <option key={category} value={category}>
@@ -273,21 +282,21 @@ function ActivitiesPageContent() {
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Tanggal</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Tanggal</span>
             <input
               type="date"
               required
               value={form.date}
               onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Status</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Status</span>
             <select
               value={form.status}
               onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as ActivityStatus }))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
               {activityStatuses.map((status) => (
                 <option key={status} value={status}>
@@ -296,24 +305,14 @@ function ActivitiesPageContent() {
               ))}
             </select>
           </label>
-          <TimePicker
-            id="activity-start-time"
-            label="Mulai"
-            value={form.startTime}
-            onChange={(startTime) => setForm((current) => ({ ...current, startTime }))}
-          />
-          <TimePicker
-            id="activity-end-time"
-            label="Selesai"
-            value={form.endTime}
-            onChange={(endTime) => setForm((current) => ({ ...current, endTime }))}
-          />
+          <TimePicker id="activity-start-time" label="Mulai" value={form.startTime} onChange={(startTime) => setForm((current) => ({ ...current, startTime }))} />
+          <TimePicker id="activity-end-time" label="Selesai" value={form.endTime} onChange={(endTime) => setForm((current) => ({ ...current, endTime }))} />
           <label className="space-y-1 lg:col-span-2">
-            <span className="text-sm font-medium text-slate-700">Catatan</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Catatan</span>
             <textarea
               value={form.notes}
               onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              className="min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
           <div className="flex flex-wrap gap-2 lg:col-span-2">
@@ -327,7 +326,7 @@ function ActivitiesPageContent() {
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center gap-2 rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <RotateCcw className="h-4 w-4" />
               Reset
@@ -336,22 +335,17 @@ function ActivitiesPageContent() {
         </form>
       </section>
 
-      <section className="flex flex-col gap-3 rounded border border-slate-200 bg-white p-4 shadow-sm sm:flex-row">
+      <section className="flex flex-col gap-3 rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row">
         <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Filter tanggal</span>
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(event) => setDateFilter(event.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-          />
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter tanggal</span>
+          <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" />
         </label>
         <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Filter kategori</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Filter kategori</span>
           <select
             value={categoryFilter}
             onChange={(event) => setCategoryFilter(event.target.value as ActivityCategoryFilter)}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             <option value="Preferensi">Preferensi</option>
             <option value="Semua">Semua</option>
@@ -364,13 +358,7 @@ function ActivitiesPageContent() {
         </label>
       </section>
 
-      <ActivityList
-        activities={paginatedActivities.items}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onStatusChange={handleStatusChange}
-        onComplete={handleComplete}
-      />
+      <ActivityList activities={paginatedActivities.items} onEdit={handleEdit} onDelete={handleDelete} onStatusChange={handleStatusChange} onComplete={handleComplete} />
       <Pagination
         currentPage={paginatedActivities.currentPage}
         totalPages={paginatedActivities.totalPages}

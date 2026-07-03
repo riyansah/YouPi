@@ -1,39 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
-import { Eye, EyeOff, KeyRound } from "lucide-react";
+import { FormEvent, KeyboardEvent, useMemo, useState } from "react";
+import { KeyRound, Lock } from "lucide-react";
 import { getPasswordStrength, validateAuthPassword } from "@/lib/auth-validation";
+import {
+  CapsLockWarning,
+  getValidationDisplayMode,
+  InputShell,
+  PasswordToggle,
+  ValidationFeedback,
+  type ValidationItem
+} from "@/components/AuthFormControls";
 import { cn } from "@/lib/utils";
 
-function PasswordToggle({ visible, onClick, label }: { visible: boolean; onClick: () => void; label: string }) {
-  const Icon = visible ? EyeOff : Eye;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-200 text-slate-600 hover:bg-slate-100"
-      aria-label={label}
-      title={label}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  );
-}
-
-function FieldErrors({ errors }: { errors: string[] }) {
-  if (!errors.length) {
-    return null;
-  }
-
-  return (
-    <ul className="space-y-1 text-xs text-rose-700">
-      {errors.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
+function getCapsLockState(event: KeyboardEvent<HTMLInputElement>) {
+  return event.getModifierState("CapsLock");
 }
 
 function StrengthMeter({ password }: { password: string }) {
@@ -62,9 +44,17 @@ export default function ChangePasswordPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentPasswordCapsLockActive, setCurrentPasswordCapsLockActive] = useState(false);
+  const [newPasswordCapsLockActive, setNewPasswordCapsLockActive] = useState(false);
+  const [confirmPasswordCapsLockActive, setConfirmPasswordCapsLockActive] = useState(false);
+  const [currentPasswordFocused, setCurrentPasswordFocused] = useState(false);
+  const [newPasswordFocused, setNewPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+  const [currentPasswordTouched, setCurrentPasswordTouched] = useState(false);
+  const [newPasswordTouched, setNewPasswordTouched] = useState(false);
+  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const currentPasswordErrors = useMemo(() => (currentPassword ? [] : ["Password lama wajib diisi."]), [currentPassword]);
@@ -87,13 +77,60 @@ export default function ChangePasswordPage() {
 
     return [];
   }, [currentPassword, newPassword]);
-  const formValid =
-    !currentPasswordErrors.length && !newPasswordErrors.length && !confirmPasswordErrors.length && !samePasswordErrors.length;
-  const showLiveErrors = submitted || currentPassword || newPassword || confirmPassword;
+
+  const currentPasswordValid = currentPasswordErrors.length === 0;
+  const newPasswordValid = newPasswordErrors.length === 0 && samePasswordErrors.length === 0;
+  const confirmPasswordValid = confirmPasswordErrors.length === 0;
+  const formValid = currentPasswordValid && newPasswordValid && confirmPasswordValid;
+
+  const currentPasswordChecks: ValidationItem[] = [
+    { id: "current-required", label: "Password lama wajib diisi.", valid: Boolean(currentPassword) }
+  ];
+  const newPasswordChecks: ValidationItem[] = [
+    { id: "new-min", label: "Minimal 8 karakter.", valid: newPassword.length >= 8 },
+    { id: "new-max", label: "Maksimal 64 karakter.", valid: newPassword.length <= 64 },
+    { id: "new-uppercase", label: "Minimal 1 huruf besar.", valid: /[A-Z]/.test(newPassword) },
+    { id: "new-number", label: "Minimal 1 angka.", valid: /[0-9]/.test(newPassword) },
+    { id: "new-space", label: "Tidak boleh mengandung spasi.", valid: !/\s/.test(newPassword) },
+    {
+      id: "new-different",
+      label: "Tidak sama dengan password lama.",
+      valid: Boolean(newPassword) && (!currentPassword || currentPassword !== newPassword)
+    }
+  ];
+  const confirmPasswordChecks: ValidationItem[] = [
+    { id: "confirm-required", label: "Konfirmasi password baru wajib diisi.", valid: Boolean(confirmPassword) },
+    {
+      id: "confirm-match",
+      label: "Konfirmasi password baru harus sama.",
+      valid: Boolean(confirmPassword) && newPassword === confirmPassword
+    }
+  ];
+
+  const currentPasswordMode = getValidationDisplayMode({
+    focused: currentPasswordFocused,
+    touched: currentPasswordTouched,
+    value: currentPassword,
+    valid: currentPasswordValid
+  });
+  const newPasswordMode = getValidationDisplayMode({
+    focused: newPasswordFocused,
+    touched: newPasswordTouched,
+    value: newPassword,
+    valid: newPasswordValid
+  });
+  const confirmPasswordMode = getValidationDisplayMode({
+    focused: confirmPasswordFocused,
+    touched: confirmPasswordTouched,
+    value: confirmPassword,
+    valid: confirmPasswordValid
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setCurrentPasswordTouched(true);
+    setNewPasswordTouched(true);
+    setConfirmPasswordTouched(true);
     setError(null);
     setMessage(null);
 
@@ -121,7 +158,15 @@ export default function ChangePasswordPage() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setSubmitted(false);
+    setCurrentPasswordFocused(false);
+    setNewPasswordFocused(false);
+    setConfirmPasswordFocused(false);
+    setCurrentPasswordCapsLockActive(false);
+    setNewPasswordCapsLockActive(false);
+    setConfirmPasswordCapsLockActive(false);
+    setCurrentPasswordTouched(false);
+    setNewPasswordTouched(false);
+    setConfirmPasswordTouched(false);
     setSubmitting(false);
   }
 
@@ -139,63 +184,135 @@ export default function ChangePasswordPage() {
 
         <label className="space-y-1">
           <span className="text-sm font-medium text-slate-700">Password lama</span>
-          <span className="flex gap-2">
+          <InputShell
+            icon={Lock}
+            action={
+              <PasswordToggle
+                visible={showCurrentPassword}
+                onClick={() => setShowCurrentPassword((current) => !current)}
+                label={showCurrentPassword ? "Sembunyikan password lama" : "Tampilkan password lama"}
+              />
+            }
+          >
             <input
               type={showCurrentPassword ? "text" : "password"}
               value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
+              onChange={(event) => {
+                setCurrentPasswordTouched(true);
+                setCurrentPassword(event.target.value);
+              }}
+              onFocus={() => {
+                setCurrentPasswordTouched(true);
+                setCurrentPasswordFocused(true);
+              }}
+              onBlur={() => {
+                setCurrentPasswordFocused(false);
+                setCurrentPasswordCapsLockActive(false);
+              }}
+              onKeyDown={(event) => setCurrentPasswordCapsLockActive(getCapsLockState(event))}
+              onKeyUp={(event) => setCurrentPasswordCapsLockActive(getCapsLockState(event))}
               autoComplete="current-password"
-              className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              placeholder="Masukkan password lama"
+              className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
               required
             />
-            <PasswordToggle
-              visible={showCurrentPassword}
-              onClick={() => setShowCurrentPassword((current) => !current)}
-              label={showCurrentPassword ? "Sembunyikan password lama" : "Tampilkan password lama"}
-            />
-          </span>
-          {showLiveErrors ? <FieldErrors errors={currentPasswordErrors} /> : null}
+          </InputShell>
+          <CapsLockWarning active={currentPasswordCapsLockActive} />
+          <ValidationFeedback
+            helperText="Masukkan password yang dipakai saat ini."
+            summaryText="Password lama sudah diisi."
+            mode={currentPasswordMode}
+            items={currentPasswordChecks}
+          />
         </label>
 
         <label className="space-y-1">
           <span className="text-sm font-medium text-slate-700">Password baru</span>
-          <span className="flex gap-2">
+          <InputShell
+            icon={Lock}
+            action={
+              <PasswordToggle
+                visible={showNewPassword}
+                onClick={() => setShowNewPassword((current) => !current)}
+                label={showNewPassword ? "Sembunyikan password baru" : "Tampilkan password baru"}
+              />
+            }
+          >
             <input
               type={showNewPassword ? "text" : "password"}
               value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
+              onChange={(event) => {
+                setNewPasswordTouched(true);
+                setNewPassword(event.target.value);
+              }}
+              onFocus={() => {
+                setNewPasswordTouched(true);
+                setNewPasswordFocused(true);
+              }}
+              onBlur={() => {
+                setNewPasswordFocused(false);
+                setNewPasswordCapsLockActive(false);
+              }}
+              onKeyDown={(event) => setNewPasswordCapsLockActive(getCapsLockState(event))}
+              onKeyUp={(event) => setNewPasswordCapsLockActive(getCapsLockState(event))}
               autoComplete="new-password"
-              className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              placeholder="Buat password"
+              className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
               required
             />
-            <PasswordToggle
-              visible={showNewPassword}
-              onClick={() => setShowNewPassword((current) => !current)}
-              label={showNewPassword ? "Sembunyikan password baru" : "Tampilkan password baru"}
-            />
-          </span>
+          </InputShell>
+          <CapsLockWarning active={newPasswordCapsLockActive} />
           <StrengthMeter password={newPassword} />
-          {showLiveErrors ? <FieldErrors errors={[...newPasswordErrors, ...samePasswordErrors]} /> : null}
+          <ValidationFeedback
+            helperText="Gunakan 8-64 karakter, 1 huruf besar, 1 angka, tanpa spasi."
+            summaryText="Password baru memenuhi semua syarat."
+            mode={newPasswordMode}
+            items={newPasswordChecks}
+          />
         </label>
 
         <label className="space-y-1">
           <span className="text-sm font-medium text-slate-700">Konfirmasi password baru</span>
-          <span className="flex gap-2">
+          <InputShell
+            icon={Lock}
+            action={
+              <PasswordToggle
+                visible={showConfirmPassword}
+                onClick={() => setShowConfirmPassword((current) => !current)}
+                label={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
+              />
+            }
+          >
             <input
               type={showConfirmPassword ? "text" : "password"}
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) => {
+                setConfirmPasswordTouched(true);
+                setConfirmPassword(event.target.value);
+              }}
+              onFocus={() => {
+                setConfirmPasswordTouched(true);
+                setConfirmPasswordFocused(true);
+              }}
+              onBlur={() => {
+                setConfirmPasswordFocused(false);
+                setConfirmPasswordCapsLockActive(false);
+              }}
+              onKeyDown={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))}
+              onKeyUp={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))}
               autoComplete="new-password"
-              className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              placeholder="Ulangi password"
+              className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
               required
             />
-            <PasswordToggle
-              visible={showConfirmPassword}
-              onClick={() => setShowConfirmPassword((current) => !current)}
-              label={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
-            />
-          </span>
-          {showLiveErrors ? <FieldErrors errors={confirmPasswordErrors} /> : null}
+          </InputShell>
+          <CapsLockWarning active={confirmPasswordCapsLockActive} />
+          <ValidationFeedback
+            helperText="Ulangi password yang sama."
+            summaryText="Konfirmasi password sudah cocok."
+            mode={confirmPasswordMode}
+            items={confirmPasswordChecks}
+          />
         </label>
 
         <div className="flex flex-wrap items-center gap-3">

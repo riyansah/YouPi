@@ -34,8 +34,8 @@ export function validateAuthPassword(password: string) {
     errors.push("Password maksimal 64 karakter.");
   }
 
-  if (password && !/^[\x21-\x7E]+$/.test(password)) {
-    errors.push("Password hanya boleh berisi huruf, angka, dan simbol tanpa spasi.");
+  if (/\s/.test(password)) {
+    errors.push("Password tidak boleh mengandung spasi.");
   }
 
   if (password && !/[A-Z]/.test(password)) {
@@ -72,7 +72,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
     score += 1;
   }
 
-  if (/[^A-Za-z0-9]/.test(password)) {
+  if (/[^A-Za-z0-9\s]/.test(password)) {
     score += 1;
   }
 

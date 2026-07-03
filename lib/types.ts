@@ -23,6 +23,8 @@ export interface Task {
   priority: TaskPriority;
   startDate: string;
   deadline: string;
+  startTime: string | null;
+  endTime: string | null;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;

@@ -43,6 +43,16 @@ test("database auth registers the first user, verifies sessions, and rate limits
     }
 
     assert.equal(auth.checkRateLimit("register", "register-test-ip", 1000).allowed, false);
+
+    const resetResult = auth.resetUserCredentials("rescued", "Rescued1A");
+    assert.deepEqual(resetResult, { ok: true, action: "updated", username: "rescued" });
+    assert.deepEqual(auth.verifyCredentials("owner", "Better2!"), { ok: false, reason: "credentials" });
+    assert.deepEqual(auth.verifyCredentials("rescued", "Rescued1A"), { ok: true, username: "rescued" });
+    assert.equal(auth.checkRateLimit("login", "login-test-ip", 1000).allowed, true);
+
+    const resetToken = auth.createSessionToken("rescued", 3000);
+    assert.deepEqual(auth.verifySessionToken(resetToken, 4000), { user: "rescued" });
+    assert.equal(auth.verifySessionToken(token, 4000), null);
   } finally {
     if (previousSqlitePath === undefined) {
       delete process.env.SQLITE_PATH;
@@ -60,7 +70,6 @@ test("scrypt password hashes verify only the matching password", async () => {
   assert.equal(verifyPasswordHash("wrong horse", hash), false);
 });
 
-
 test("auth validation enforces register username and password rules", () => {
   assert.deepEqual(validateAuthUsername("ab"), ["Username minimal 3 karakter."]);
   assert.deepEqual(validateAuthUsername("abcdefghijklmnopqrstu"), ["Username maksimal 20 karakter."]);
@@ -71,7 +80,7 @@ test("auth validation enforces register username and password rules", () => {
   assert.deepEqual(validateAuthPassword("short1A"), ["Password minimal 8 karakter."]);
   assert.deepEqual(validateAuthPassword("lowercase1"), ["Password wajib memiliki minimal 1 huruf besar."]);
   assert.deepEqual(validateAuthPassword("NoNumber"), ["Password wajib memiliki minimal 1 angka."]);
-  assert.deepEqual(validateAuthPassword("Password 1"), ["Password hanya boleh berisi huruf, angka, dan simbol tanpa spasi."]);
+  assert.deepEqual(validateAuthPassword("Password 1"), ["Password tidak boleh mengandung spasi."]);
   assert.deepEqual(validateAuthPassword(`${"A".repeat(64)}1`), ["Password maksimal 64 karakter."]);
   assert.deepEqual(validateAuthPassword("Password1!"), []);
 });

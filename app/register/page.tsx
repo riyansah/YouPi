@@ -1,40 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Lock, User, UserPlus } from "lucide-react";
 import { getPasswordStrength, validateAuthPassword, validateAuthUsername } from "@/lib/auth-validation";
+import {
+  CapsLockWarning,
+  getValidationDisplayMode,
+  InputShell,
+  PasswordToggle,
+  ValidationFeedback,
+  type ValidationItem
+} from "@/components/AuthFormControls";
 import { cn } from "@/lib/utils";
 
-function PasswordToggle({ visible, onClick, label }: { visible: boolean; onClick: () => void; label: string }) {
-  const Icon = visible ? EyeOff : Eye;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-200 text-slate-600 hover:bg-slate-100"
-      aria-label={label}
-      title={label}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  );
-}
-
-function FieldErrors({ errors }: { errors: string[] }) {
-  if (!errors.length) {
-    return null;
-  }
-
-  return (
-    <ul className="space-y-1 text-xs text-rose-700">
-      {errors.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
+function getCapsLockState(event: KeyboardEvent<HTMLInputElement>) {
+  return event.getModifierState("CapsLock");
 }
 
 function StrengthMeter({ password }: { password: string }) {
@@ -63,11 +45,18 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordCapsLockActive, setPasswordCapsLockActive] = useState(false);
+  const [confirmPasswordCapsLockActive, setConfirmPasswordCapsLockActive] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(5);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
 
   const usernameErrors = useMemo(() => validateAuthUsername(username), [username]);
   const passwordErrors = useMemo(() => validateAuthPassword(password), [password]);
@@ -82,7 +71,10 @@ export default function RegisterPage() {
 
     return [];
   }, [confirmPassword, password]);
-  const formValid = !usernameErrors.length && !passwordErrors.length && !confirmPasswordErrors.length;
+  const usernameValid = usernameErrors.length === 0;
+  const passwordValid = passwordErrors.length === 0;
+  const confirmPasswordValid = confirmPasswordErrors.length === 0;
+  const formValid = usernameValid && passwordValid && confirmPasswordValid;
 
   useEffect(() => {
     if (!success) {
@@ -106,9 +98,51 @@ export default function RegisterPage() {
     return () => window.clearInterval(interval);
   }, [router, success]);
 
+  const usernameChecks: ValidationItem[] = [
+    { id: "username-min", label: "Minimal 3 karakter.", valid: username.trim().length >= 3 },
+    { id: "username-max", label: "Maksimal 20 karakter.", valid: username.trim().length <= 20 },
+    {
+      id: "username-format",
+      label: "Hanya huruf kecil dan angka.",
+      valid: !username.trim() || /^[a-z0-9]+$/.test(username.trim())
+    }
+  ];
+  const passwordChecks: ValidationItem[] = [
+    { id: "password-min", label: "Minimal 8 karakter.", valid: password.length >= 8 },
+    { id: "password-max", label: "Maksimal 64 karakter.", valid: password.length <= 64 },
+    { id: "password-uppercase", label: "Minimal 1 huruf besar.", valid: /[A-Z]/.test(password) },
+    { id: "password-number", label: "Minimal 1 angka.", valid: /[0-9]/.test(password) },
+    { id: "password-space", label: "Tidak boleh mengandung spasi.", valid: !/\s/.test(password) }
+  ];
+  const confirmPasswordChecks: ValidationItem[] = [
+    { id: "confirm-required", label: "Konfirmasi password wajib diisi.", valid: Boolean(confirmPassword) },
+    { id: "confirm-match", label: "Konfirmasi password harus sama.", valid: Boolean(confirmPassword) && password === confirmPassword }
+  ];
+
+  const usernameMode = getValidationDisplayMode({
+    focused: usernameFocused,
+    touched: usernameTouched,
+    value: username,
+    valid: usernameValid
+  });
+  const passwordMode = getValidationDisplayMode({
+    focused: passwordFocused,
+    touched: passwordTouched,
+    value: password,
+    valid: passwordValid
+  });
+  const confirmPasswordMode = getValidationDisplayMode({
+    focused: confirmPasswordFocused,
+    touched: confirmPasswordTouched,
+    value: confirmPassword,
+    valid: confirmPasswordValid
+  });
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setUsernameTouched(true);
+    setPasswordTouched(true);
+    setConfirmPasswordTouched(true);
     setError(null);
     setSuccess(null);
 
@@ -142,8 +176,6 @@ export default function RegisterPage() {
     setSubmitting(false);
   }
 
-  const showLiveErrors = submitted || username || password || confirmPassword;
-
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 py-10">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded border border-slate-200 bg-white p-6 shadow-sm">
@@ -163,58 +195,122 @@ export default function RegisterPage() {
         <div className="mt-5 space-y-4">
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">Username</span>
-            <input
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="username"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
-              required
-              disabled={Boolean(success)}
+            <InputShell icon={User}>
+              <input
+                value={username}
+                onChange={(event) => {
+                  setUsernameTouched(true);
+                  setUsername(event.target.value);
+                }}
+                onFocus={() => {
+                  setUsernameTouched(true);
+                  setUsernameFocused(true);
+                }}
+                onBlur={() => setUsernameFocused(false)}
+                autoComplete="username"
+                placeholder="contoh: user123"
+                className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
+                required
+                disabled={Boolean(success)}
+              />
+            </InputShell>
+            <ValidationFeedback
+              helperText="Gunakan 3-20 karakter huruf kecil dan angka."
+              summaryText="Format username valid."
+              mode={usernameMode}
+              items={usernameChecks}
             />
-            {showLiveErrors ? <FieldErrors errors={usernameErrors} /> : null}
           </label>
 
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">Password</span>
-            <span className="flex gap-2">
+            <InputShell
+              icon={Lock}
+              action={
+                <PasswordToggle
+                  visible={showPassword}
+                  onClick={() => setShowPassword((current) => !current)}
+                  label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                />
+              }
+            >
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPasswordTouched(true);
+                  setPassword(event.target.value);
+                }}
+                onFocus={() => {
+                  setPasswordTouched(true);
+                  setPasswordFocused(true);
+                }}
+                onBlur={() => {
+                  setPasswordFocused(false);
+                  setPasswordCapsLockActive(false);
+                }}
+                onKeyDown={(event) => setPasswordCapsLockActive(getCapsLockState(event))}
+                onKeyUp={(event) => setPasswordCapsLockActive(getCapsLockState(event))}
                 autoComplete="new-password"
-                className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+                placeholder="Buat password"
+                className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
                 required
                 disabled={Boolean(success)}
               />
-              <PasswordToggle
-                visible={showPassword}
-                onClick={() => setShowPassword((current) => !current)}
-                label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-              />
-            </span>
+            </InputShell>
+            <CapsLockWarning active={passwordCapsLockActive} />
             <StrengthMeter password={password} />
-            {showLiveErrors ? <FieldErrors errors={passwordErrors} /> : null}
+            <ValidationFeedback
+              helperText="Gunakan 8-64 karakter, 1 huruf besar, 1 angka, tanpa spasi."
+              summaryText="Password memenuhi semua syarat."
+              mode={passwordMode}
+              items={passwordChecks}
+            />
           </label>
 
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">Konfirmasi Password</span>
-            <span className="flex gap-2">
+            <InputShell
+              icon={Lock}
+              action={
+                <PasswordToggle
+                  visible={showConfirmPassword}
+                  onClick={() => setShowConfirmPassword((current) => !current)}
+                  label={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
+                />
+              }
+            >
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(event) => {
+                  setConfirmPasswordTouched(true);
+                  setConfirmPassword(event.target.value);
+                }}
+                onFocus={() => {
+                  setConfirmPasswordTouched(true);
+                  setConfirmPasswordFocused(true);
+                }}
+                onBlur={() => {
+                  setConfirmPasswordFocused(false);
+                  setConfirmPasswordCapsLockActive(false);
+                }}
+                onKeyDown={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))}
+                onKeyUp={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))}
                 autoComplete="new-password"
-                className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+                placeholder="Ulangi password"
+                className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
                 required
                 disabled={Boolean(success)}
               />
-              <PasswordToggle
-                visible={showConfirmPassword}
-                onClick={() => setShowConfirmPassword((current) => !current)}
-                label={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
-              />
-            </span>
-            {showLiveErrors ? <FieldErrors errors={confirmPasswordErrors} /> : null}
+            </InputShell>
+            <CapsLockWarning active={confirmPasswordCapsLockActive} />
+            <ValidationFeedback
+              helperText="Ulangi password yang sama."
+              summaryText="Konfirmasi password sudah cocok."
+              mode={confirmPasswordMode}
+              items={confirmPasswordChecks}
+            />
           </label>
         </div>
 

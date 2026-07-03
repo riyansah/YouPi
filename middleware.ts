@@ -21,8 +21,12 @@ function isPublicBeforeRegister(pathname: string) {
   return pathname === "/register" || pathname === "/login" || pathname === "/api/auth/register" || pathname === "/api/auth/login" || pathname === "/api/auth/logout" || isAuthStatusPath(pathname);
 }
 
+function getInternalOrigin() {
+  return process.env.APP_INTERNAL_ORIGIN || `http://127.0.0.1:${process.env.PORT || "3000"}`;
+}
+
 async function readAuthStatus(request: NextRequest): Promise<AuthStatus> {
-  const response = await fetch(new URL("/api/auth/status", request.url), {
+  const response = await fetch(new URL("/api/auth/status", getInternalOrigin()), {
     headers: { cookie: request.headers.get("cookie") || "" },
     cache: "no-store"
   });
@@ -73,5 +77,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"]
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg).*)"]
 };

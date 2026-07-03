@@ -1,6 +1,6 @@
 import type { Activity, Routine, Task } from "@/lib/types";
 
-export type TaskFormInput = Pick<Task, "title" | "description" | "status" | "priority" | "startDate" | "deadline">;
+export type TaskFormInput = Pick<Task, "title" | "description" | "status" | "priority" | "startDate" | "deadline" | "startTime" | "endTime">;
 export type ActivityFormInput = Pick<
   Activity,
   "title" | "category" | "date" | "startTime" | "endTime" | "status" | "notes"
@@ -20,6 +20,17 @@ export function validateTaskForm(input: TaskFormInput) {
 
   if (input.deadline < input.startDate) {
     errors.push("Deadline tidak boleh lebih awal dari tanggal mulai.");
+  }
+
+  const hasStartTime = Boolean(input.startTime);
+  const hasEndTime = Boolean(input.endTime);
+
+  if (hasStartTime !== hasEndTime) {
+    errors.push("Jam mulai dan jam selesai harus diisi bersamaan atau dikosongkan keduanya.");
+  }
+
+  if (hasStartTime && hasEndTime && input.endTime! <= input.startTime!) {
+    errors.push("Jam selesai harus lebih besar dari jam mulai.");
   }
 
   return errors;

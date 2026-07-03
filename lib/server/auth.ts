@@ -109,6 +109,35 @@ export function registerUser(username: string, password: string) {
   return { ok: true as const, username: normalizedUsername };
 }
 
+export function resetUserCredentials(username: string, password: string) {
+  ensureAuthTables();
+
+  const normalizedUsername = username.trim();
+  const authConfig = readAuthConfig();
+  const now = new Date().toISOString();
+  const passwordHash = createPasswordHash(password);
+  const sessionSecret = randomBytes(32).toString("base64url");
+  const db = getDatabase();
+
+  if (!authConfig) {
+    db.prepare(
+      "INSERT INTO auth_config (id, username, password_hash, session_secret, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?)"
+    ).run(normalizedUsername, passwordHash, sessionSecret, now, now);
+    db.prepare("DELETE FROM auth_rate_limits").run();
+    return { ok: true as const, action: "created" as const, username: normalizedUsername };
+  }
+
+  db.prepare("UPDATE auth_config SET username = ?, password_hash = ?, session_secret = ?, updated_at = ? WHERE id = 1").run(
+    normalizedUsername,
+    passwordHash,
+    sessionSecret,
+    now
+  );
+  db.prepare("DELETE FROM auth_rate_limits").run();
+
+  return { ok: true as const, action: "updated" as const, username: normalizedUsername };
+}
+
 export function verifyCredentials(username: string, password: string) {
   const authConfig = readAuthConfig();
 

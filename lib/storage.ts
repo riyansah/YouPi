@@ -83,6 +83,8 @@ export function isTask(value: unknown): value is Task {
     includesValue(taskPriorities, value.priority) &&
     isString(value.startDate) &&
     isString(value.deadline) &&
+    (isString(value.startTime) || value.startTime === null || value.startTime === undefined) &&
+    (isString(value.endTime) || value.endTime === null || value.endTime === undefined) &&
     (isString(value.completedAt) || value.completedAt === null) &&
     isString(value.createdAt) &&
     isString(value.updatedAt)

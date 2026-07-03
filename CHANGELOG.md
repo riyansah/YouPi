@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.7.19 - 2026-07-03
+
+- Updated `docs/panduan-menu.md` so the menu guide matches the current dashboard, tasks, routines, reports, and settings behavior.
+
+## 0.7.18 - 2026-07-03
+
+- Simplified `README.md` to keep only the essential setup, auth reset, deploy, and verification instructions.
+
+## 0.7.17 - 2026-07-03
+
+- Fixed the sidebar brand so both `Personal` and `Activity Hub` open the dashboard without duplicating the app name.
+- Improved dark-mode card hover contrast on dashboard and report summary cards.
+- Added optional start/end times plus a quick-complete action for tasks, and made task deadline countdowns follow the task end time when provided.
+- Updated report filters so all report cards and charts follow the active daily, weekly, or monthly period, renamed the activity-per-day chart to `Kegiatan`, added a permanent category legend, and renamed weekly progress to `Progress Pekerjaan`.
+
+## 0.7.16 - 2026-07-03
+
+- Made `Personal Activity Hub` in the mobile header and sidebar brand open the dashboard directly.
+- Fixed dark-mode highlight contrast for selected navigation, agenda labels, and task/activity/routine status chips.
+- Added success toast notifications when tasks, activities, and routines are created or marked complete.
+- Replaced browser confirms with in-app confirmation popups for deleting tasks, activities, and routines, plus reset data and logout actions.
+
+## 0.7.15 - 2026-07-03
+
+- Added `./reset-auth.sh` as a launcher-style wrapper that prepares local npm dependencies and prompts for the single-user auth reset interactively.
+
+## 0.7.14 - 2026-07-03
+
+- Added an `npm run auth:reset -- --username <username> --password <password>` admin command to reset the single local user and password while invalidating all active sessions.
+
+## 0.7.13 - 2026-07-03
+
+- Added client-side login validation and changed auth feedback to show helper text first, expand into full checklists on focus/typing, then collapse to summary states after valid blur.
+- Changed password validation rules and auth placeholders to use 8-64 characters, 1 uppercase letter, 1 number, no spaces, `Buat password`, and `Ulangi password`.
+
+## 0.7.12 - 2026-07-03
+
+- Added username/password prefix icons, placeholders, password visibility toggle on login, and Caps Lock warnings across login, register, and change-password forms.
+- Changed register and change-password live validation to checklist-style status feedback with valid and invalid indicators.
+
+
+## 0.7.11 - 2026-07-03
+
+- Added a custom Activity Dashboard favicon and app icon.
+
+
+## 0.7.10 - 2026-07-03
+
+- Fixed Docker reverse-proxy auth checks by using an internal app origin for middleware status requests.
+- Changed Docker production image to use Next.js standalone output.
+
+
+## 0.7.9 - 2026-07-03
+
+- Added Docker image support for production deployment behind the existing Waskuy nginx reverse proxy.
+
 
 ## 0.7.8 - 2026-07-03
 
