@@ -357,9 +357,15 @@ export function taskStatusChartData(tasks: Task[]) {
   return statuses.map((status) => ({ name: status, value: counts[status] || 0 }));
 }
 
-export function activityCategoryChartData(activities: Activity[]) {
+export function activityCategoryChartData(activities: Activity[], maxItems?: number) {
   const counts = countBy(activities, "category");
-  return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
+
+  if (!maxItems) {
+    return data;
+  }
+
+  return data.sort((a, b) => b.value - a.value || a.name.localeCompare(b.name)).slice(0, maxItems);
 }
 
 export function activityPerDayChartData(activities: Activity[]) {
@@ -506,13 +512,15 @@ export function getWeekKey(value: string) {
   return `${date.getFullYear()}-${week}`;
 }
 
-export function toCsv(rows: Array<Record<string, string | number | null>>) {
+export function toCsv(rows: Array<Record<string, string | number | null>>, options: { bom?: boolean; lineEnding?: "\n" | "\r\n" } = {}) {
   if (!rows.length) {
     return "";
   }
 
   const headers = Object.keys(rows[0]);
   const escape = (value: string | number | null) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const lineEnding = options.lineEnding || "\n";
+  const content = [headers.join(","), ...rows.map((row) => headers.map((header) => escape(row[header])).join(","))].join(lineEnding);
 
-  return [headers.join(","), ...rows.map((row) => headers.map((header) => escape(row[header])).join(","))].join("\n");
+  return options.bom ? `\uFEFF${content}` : content;
 }

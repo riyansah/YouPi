@@ -164,12 +164,14 @@ export function DailyActivityChart({
 
 export function ActivityCategoryChart({
   activities,
-  title = "Aktivitas Berdasarkan Kategori"
+  title = "Aktivitas Berdasarkan Kategori",
+  maxItems
 }: {
   activities: Activity[];
   title?: string;
+  maxItems?: number;
 }) {
-  const data = activityCategoryChartData(activities);
+  const data = activityCategoryChartData(activities, maxItems);
   const total = data.reduce((sum, item) => sum + item.value, 0);
   const legendItems = data.map((item, index) => ({
     ...item,

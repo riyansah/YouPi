@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.22 - 2026-07-03
+
+- Fixed the activity preference category filter so `Preferensi` only shows selected categories and explains the active preference filter in the Activities menu.
+
+## 0.7.21 - 2026-07-03
+
+- Limited the report activity category chart to the top four categories, added Excel-compatible report export, and expanded CSV export into a detailed filter-aware report.
+
+## 0.7.20 - 2026-07-03
+
+- Added PDF export for reports with summary and full-data modes that follow the active report filters and include KPI metrics, charts, insights, and detail tables.
+
 ## 0.7.19 - 2026-07-03
 
 - Updated `docs/panduan-menu.md` so the menu guide matches the current dashboard, tasks, routines, reports, and settings behavior.

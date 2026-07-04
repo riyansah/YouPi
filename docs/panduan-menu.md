@@ -91,7 +91,7 @@ Fungsi utamanya:
 - ubah status aktivitas,
 - tandai selesai dengan cepat,
 - filter berdasarkan tanggal,
-- filter berdasarkan kategori.
+- filter berdasarkan kategori, termasuk filter `Preferensi` dari Pengaturan.
 
 Data aktivitas:
 
@@ -137,7 +137,9 @@ Fungsi utamanya:
 - pilih jenis laporan `Harian`, `Mingguan`, atau `Bulanan`,
 - melihat kartu ringkasan yang mengikuti filter aktif,
 - melihat grafik yang mengikuti filter aktif,
-- export ringkasan ke CSV.
+- export CSV detail yang mengikuti filter aktif,
+- export Excel yang mengikuti filter aktif,
+- export PDF dalam mode `Ringkas + detail penting` atau `Semua data filter`.
 
 Grafik laporan yang tersedia:
 

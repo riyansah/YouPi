@@ -41,8 +41,8 @@ SQLITE_PATH=./data/activity.sqlite
 - Login, register, logout, ubah password, dan reset auth.
 - Dashboard dengan ringkasan pekerjaan, agenda hari ini, dan grafik.
 - Pekerjaan dengan status, prioritas, quick action `Selesai`, dan jam mulai/selesai opsional.
-- Aktivitas harian dan rutinitas mingguan.
-- Laporan dengan filter `Harian`, `Mingguan`, dan `Bulanan`.
+- Aktivitas harian dengan filter kategori preferensi dan rutinitas mingguan.
+- Laporan dengan filter `Harian`, `Mingguan`, dan `Bulanan`, export CSV detail, export Excel, dan export PDF informatif.
 - Backup JSON export/import.
 - Tema `Terang`, `Gelap`, dan `Sistem`.
 

@@ -3,9 +3,21 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { defaultActivities, defaultRoutines, defaultSettings, defaultTasks } from "../lib/data";
+import { getActivityCategoryFilterParam, matchesActivityCategoryFilter } from "../lib/activity-filters";
 import { appRoutes } from "../lib/navigation";
+import {
+  buildReportCsvContent,
+  buildReportCsvRows,
+  buildReportExcelSheets,
+  buildReportExportModel,
+  getReportCsvFilename,
+  getReportExcelFilename,
+  getReportPdfFilename,
+  reportCsvColumns
+} from "../lib/report-export";
 import { createDashboardBackup, parseDashboardBackup } from "../lib/storage";
 import {
+  activityCategoryChartData,
   buildTodayAgendaItems,
   dailyActivityChartData,
   filterByReportPeriod,
@@ -522,4 +534,133 @@ test("filterTasksByReportPeriod filters by deadline instead of createdAt", () =>
   const filtered = filterTasksByReportPeriod(defaultTasks, "2026-06-23", "Harian");
 
   assert.deepEqual(filtered.map((task) => task.id), ["task-2", "task-4"]);
+});
+
+
+test("buildReportExportModel follows report filters and prepares important details", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-23",
+    period: "Harian",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+
+  assert.deepEqual(report.filteredTasks.map((task) => task.id), ["task-4", "task-2"]);
+  assert.equal(report.filteredActivities.length, 7);
+  assert.equal(report.taskSummary.total, 2);
+  assert.equal(report.activitySummary.total, 7);
+  assert.equal(report.overdueTasks.length, 1);
+  assert.equal(report.metrics.at(-1)?.value, 1);
+  assert.ok(report.categorySeries.length <= 4);
+  assert.ok(report.importantTasks.length <= 8);
+  assert.ok(report.importantActivities.length <= 8);
+});
+
+test("getReportPdfFilename includes period date and selected PDF mode", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-23",
+    period: "Harian",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+
+  assert.equal(getReportPdfFilename(report, "Ringkas + detail penting"), "laporan-produktivitas-harian-2026-06-23-ringkas.pdf");
+  assert.equal(getReportPdfFilename(report, "Semua data filter"), "laporan-produktivitas-harian-2026-06-23-lengkap.pdf");
+});
+
+
+test("activityCategoryChartData can limit categories to the top values", () => {
+  const activities = [
+    ...Array.from({ length: 5 }, (_, index) => ({ ...defaultActivities[0], id: `kerja-${index}`, category: "Kerja" as const })),
+    ...Array.from({ length: 4 }, (_, index) => ({ ...defaultActivities[0], id: `belajar-${index}`, category: "Belajar" as const })),
+    ...Array.from({ length: 3 }, (_, index) => ({ ...defaultActivities[0], id: `meeting-${index}`, category: "Meeting" as const })),
+    ...Array.from({ length: 2 }, (_, index) => ({ ...defaultActivities[0], id: `olahraga-${index}`, category: "Olahraga" as const })),
+    { ...defaultActivities[0], id: "istirahat-1", category: "Istirahat" as const }
+  ];
+
+  const result = activityCategoryChartData(activities, 4);
+
+  assert.deepEqual(result.map((item) => item.name), ["Kerja", "Belajar", "Meeting", "Olahraga"]);
+  assert.deepEqual(result.map((item) => item.value), [5, 4, 3, 2]);
+});
+
+test("report CSV export rows include detail sections with stable columns", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-23",
+    period: "Harian",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+  const rows = buildReportCsvRows(report);
+  const csv = buildReportCsvContent(report);
+
+  assert.deepEqual(Object.keys(rows[0]), [...reportCsvColumns]);
+  assert.equal(rows.some((row) => row.section === "pekerjaan" && row.type === "task"), true);
+  assert.equal(rows.some((row) => row.section === "aktivitas" && row.type === "activity"), true);
+  assert.equal(rows.some((row) => row.section === "grafik" && row.type === "kategori_aktivitas"), true);
+  assert.equal(csv.startsWith("\uFEFF"), true);
+  assert.equal(csv.includes("\r\n"), true);
+});
+
+test("report Excel export sheets follow the active report model", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-23",
+    period: "Harian",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+  const sheets = buildReportExcelSheets(report);
+
+  assert.deepEqual(sheets.map((sheet) => sheet.name), [
+    "Ringkasan",
+    "Pekerjaan",
+    "Aktivitas",
+    "Kategori Aktivitas",
+    "Kegiatan",
+    "Progress Pekerjaan"
+  ]);
+  assert.equal(sheets.find((sheet) => sheet.name === "Pekerjaan")?.rows.length, report.filteredTasks.length + 1);
+  assert.equal(sheets.find((sheet) => sheet.name === "Aktivitas")?.rows.length, report.filteredActivities.length + 1);
+});
+
+test("report export filenames distinguish CSV Excel and PDF", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-23",
+    period: "Harian",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+
+  assert.equal(getReportCsvFilename(report), "laporan-produktivitas-harian-2026-06-23-detail.csv");
+  assert.equal(getReportExcelFilename(report), "laporan-produktivitas-harian-2026-06-23.xls");
+  assert.equal(getReportPdfFilename(report, "Ringkas + detail penting"), "laporan-produktivitas-harian-2026-06-23-ringkas.pdf");
+  assert.equal(getReportPdfFilename(report, "Semua data filter"), "laporan-produktivitas-harian-2026-06-23-lengkap.pdf");
+});
+
+
+test("matchesActivityCategoryFilter applies preferred categories strictly", () => {
+  assert.equal(matchesActivityCategoryFilter("Kerja", "Semua", []), true);
+  assert.equal(matchesActivityCategoryFilter("Kerja", "Preferensi", ["Kerja", "Belajar"]), true);
+  assert.equal(matchesActivityCategoryFilter("Olahraga", "Preferensi", ["Kerja", "Belajar"]), false);
+  assert.equal(matchesActivityCategoryFilter("Kerja", "Preferensi", []), false);
+  assert.equal(matchesActivityCategoryFilter("Kerja", "Kerja", []), true);
+  assert.equal(matchesActivityCategoryFilter("Belajar", "Kerja", []), false);
+});
+
+test("getActivityCategoryFilterParam accepts only valid category filter values", () => {
+  assert.equal(getActivityCategoryFilterParam("Preferensi"), "Preferensi");
+  assert.equal(getActivityCategoryFilterParam("Semua"), "Semua");
+  assert.equal(getActivityCategoryFilterParam("Kerja"), "Kerja");
+  assert.equal(getActivityCategoryFilterParam("Tidak Valid"), null);
+  assert.equal(getActivityCategoryFilterParam(null), null);
 });

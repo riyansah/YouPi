@@ -7,6 +7,8 @@ import { useAppFeedback } from "@/components/AppFeedback";
 import { ActivityList } from "@/components/ActivityList";
 import { Pagination } from "@/components/Pagination";
 import { TimePicker } from "@/components/TimePicker";
+import { getActivityCategoryFilterParam, matchesActivityCategoryFilter } from "@/lib/activity-filters";
+import type { ActivityCategoryFilter } from "@/lib/activity-filters";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import type { Activity, ActivityCategory, ActivityStatus } from "@/lib/types";
 import { activityCategories, activityStatuses } from "@/lib/types";
@@ -25,16 +27,6 @@ const emptyActivityForm = {
   notes: ""
 };
 
-type ActivityCategoryFilter = "Semua" | "Preferensi" | ActivityCategory;
-
-function getCategoryFilterParam(value: string | null): ActivityCategoryFilter | null {
-  if (value === "Semua" || value === "Preferensi" || activityCategories.includes(value as ActivityCategory)) {
-    return value as ActivityCategoryFilter;
-  }
-
-  return null;
-}
-
 function getDateFilterParam(value: string | null) {
   return value && value.length === 10 && value[4] === "-" && value[7] === "-" ? value : null;
 }
@@ -45,7 +37,7 @@ function ActivitiesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedActivityId = searchParams.get("activityId");
-  const categoryQuery = getCategoryFilterParam(searchParams.get("category"));
+  const categoryQuery = getActivityCategoryFilterParam(searchParams.get("category"));
   const dateQuery = getDateFilterParam(searchParams.get("date"));
   const [categoryFilter, setCategoryFilter] = useState<ActivityCategoryFilter>(
     () => categoryQuery || (settings.preferredCategories.length ? "Preferensi" : "Semua")
@@ -60,11 +52,7 @@ function ActivitiesPageContent() {
     () =>
       activities
         .filter((activity) => {
-          const categoryMatch =
-            categoryFilter === "Semua" ||
-            (categoryFilter === "Preferensi"
-              ? !settings.preferredCategories.length || settings.preferredCategories.includes(activity.category)
-              : activity.category === categoryFilter);
+          const categoryMatch = matchesActivityCategoryFilter(activity.category, categoryFilter, settings.preferredCategories);
           const dateMatch = !dateFilter || activity.date === dateFilter;
           return categoryMatch && dateMatch;
         })
@@ -355,6 +343,13 @@ function ActivitiesPageContent() {
               </option>
             ))}
           </select>
+          {categoryFilter === "Preferensi" ? (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {settings.preferredCategories.length
+                ? `Menampilkan kategori preferensi: ${settings.preferredCategories.join(", ")}. Filter tanggal tetap berlaku.`
+                : "Belum ada kategori preferensi dipilih di Pengaturan."}
+            </p>
+          ) : null}
         </label>
       </section>
 
