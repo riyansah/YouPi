@@ -1,26 +1,16 @@
 # Panduan Menu YouPi
 
-Panduan ini menjelaskan fungsi setiap menu utama agar pengguna bisa langsung memahami alur kerja aplikasi.
+Panduan ini menjelaskan fungsi menu utama YouPi agar pengguna baru bisa langsung memahami alur kerja aplikasi.
 
-## Ringkasan Aplikasi
+## Ringkasan
 
-`YouPi` dipakai untuk mengelola:
+YouPi adalah dashboard pribadi untuk mengelola pekerjaan, aktivitas, rutinitas, jadwal, catatan, riwayat, laporan, dan pengaturan dalam satu akun lokal.
 
-- work,
-- activities,
-- routines,
-- reports,
-- dan settings.
+Semua data tersimpan di SQLite dan hanya dapat diakses setelah login. Waktu aplikasi dikunci ke `Asia/Jakarta (WIB)`.
 
-Semua data disimpan di SQLite dan hanya bisa diakses setelah login.
+## Navigasi
 
-## Navigasi Utama
-
-Menu utama ada di sidebar:
-
-- Badge pada `Work` menampilkan jumlah pekerjaan yang sedang `Berjalan`, dengan tooltip yang menjelaskan arti angkanya.
-- Badge pada `Activities` menampilkan jumlah aktivitas overdue yang masih membutuhkan aksi pengguna, dengan tooltip yang menjelaskan arti angkanya.
-
+Menu utama berada di sidebar:
 
 - `Dashboard`
 - `Work` atau `Pekerjaan`
@@ -32,48 +22,127 @@ Menu utama ada di sidebar:
 - `Reports` atau `Laporan`
 - `Settings` atau `Pengaturan`
 
-Pada mobile, sidebar dibuka dari tombol menu di header. Brand `YouPi` dan tagline `You Plan It` di sidebar sama-sama mengarah ke dashboard. Setelah login, indikator hari, tanggal, dan jam aktif tampil sejajar dengan judul menu pada setiap halaman, mengikuti waktu tetap `Asia/Jakarta (WIB)`, dan sekarang tampil dalam kartu waktu yang lebih menonjol.
+Pada layar mobile, sidebar dibuka dari tombol menu di header. Brand `YouPi` dan tagline `You Plan It` mengarah ke `Dashboard`.
 
-## Menu Schedule
+Badge pada `Work` menampilkan jumlah pekerjaan yang sedang berjalan. Badge pada `Activities` menampilkan jumlah aktivitas yang sudah lewat waktu dan masih membutuhkan aksi.
 
-`Schedule` adalah pusat tampilan waktu untuk menggabungkan data dari `Work`, `Activities`, dan `Routines` dalam satu halaman. Occurrence `Routines` yang jamnya sudah lewat tidak dianggap `missed`; item tersebut ditandai selesai di tampilan jadwal.
+## Dashboard
+
+`Dashboard` menampilkan ringkasan utama hari ini:
+
+- kartu statistik pekerjaan dan aktivitas,
+- grafik status dan progres,
+- deadline pekerjaan terdekat,
+- agenda hari ini dari work, activities, dan routines,
+- indikator hari, tanggal, dan jam aktif dalam WIB.
+
+Gunakan halaman ini untuk melihat kondisi umum sebelum masuk ke menu detail.
+
+## Work
+
+`Work` dipakai untuk pekerjaan, tugas, proyek, dan deadline.
 
 Di halaman ini pengguna bisa:
 
-- melihat jadwal hari ini, minggu ini, bulan ini, atau daftar agenda,
+- membuat, mengedit, menyelesaikan, membatalkan, dan menghapus pekerjaan,
+- mengatur prioritas, status, tanggal deadline, serta waktu mulai/akhir,
+- memakai filter dan pagination,
+- menambahkan catatan terkait pekerjaan,
+- melihat countdown untuk pekerjaan yang akan mulai, sedang berjalan, atau terlambat.
+
+Status `Dibatalkan` tidak menjadi pilihan awal saat membuat item, tetapi tersedia sebagai aksi setelah item dibuat.
+
+## Activities
+
+`Activities` dipakai untuk kegiatan sekali jalan atau kegiatan umum yang dijadwalkan pada tanggal tertentu.
+
+Di halaman ini pengguna bisa:
+
+- membuat, mengedit, menyelesaikan, membatalkan, dan menghapus aktivitas,
+- mengatur kategori, status, tanggal, serta waktu mulai/akhir,
+- memfilter berdasarkan tanggal, kategori, status, dan preferensi,
+- menambahkan catatan terkait aktivitas,
+- menangani aktivitas overdue melalui panel `Activities need attention`.
+
+Panel overdue menyediakan aksi `Selesai` dan `Dibatalkan`. Saat panel dibuka dari toast, toast disembunyikan sementara sampai panel ditutup.
+
+## Routines
+
+`Routines` dipakai untuk rutinitas mingguan yang berulang.
+
+Di halaman ini pengguna bisa:
+
+- membuat, mengedit, dan menghapus rutinitas,
+- memilih hari aktif dan rentang waktu,
+- menghubungkan catatan ke rutinitas,
+- melihat kemunculan rutinitas pada `Dashboard` dan `Schedule`.
+
+Kemunculan routine yang waktunya sudah lewat tidak otomatis dianggap `Missed` di tampilan `Schedule`.
+
+## Schedule
+
+`Schedule` menggabungkan `Work`, `Activities`, dan `Routines` dalam tampilan waktu.
+
+Di halaman ini pengguna bisa:
+
+- membuka tampilan `Today`, `Week`, `Month`, dan `Agenda`,
 - memfilter item berdasarkan sumber data dan status,
-- melihat ringkasan jumlah work, activity, routine, dan item missed,
-- membuka item terkait kembali ke halaman `Work`, `Activities`, atau `Routines`.
+- melihat ringkasan jumlah work, activity, routine, dan missed item,
+- membuka item terkait kembali ke menu asalnya.
 
-## Menu Notes
+Gunakan menu ini untuk melihat benturan jadwal dan urutan kegiatan berdasarkan waktu.
 
-`Notes` adalah pusat catatan pribadi di YouPi. Note bisa berdiri sendiri sebagai catatan personal atau dihubungkan ke item `Work`, `Activities`, dan `Routines`.
+## Notes
 
-Di halaman ini pengguna bisa:
-
-- membuat, membuka, mengedit, dan menghapus note,
-- mencari note berdasarkan judul, isi, tag, atau kategori,
-- memfilter note berdasarkan kategori atau status pinned,
-- membuka note cepat lewat drawer atau edit panjang lewat halaman detail note,
-- melihat note terkait saat mengedit item `Work`, `Activities`, atau `Routines`.
-
-
-## Menu History
-
-`History` adalah timeline otomatis untuk melihat jejak perubahan penting dari `Work`, `Activities`, `Routines`, dan `Notes`.
+`Notes` adalah pusat catatan pribadi.
 
 Di halaman ini pengguna bisa:
 
-- mencari riwayat berdasarkan title, description, kategori, atau event,
-- memfilter riwayat berdasarkan kategori item, jenis event, dan rentang tanggal,
+- membuat, membuka, mengedit, menghapus, dan melakukan pin pada catatan,
+- mencari catatan berdasarkan judul, isi, tag, atau kategori,
+- memfilter catatan berdasarkan kategori atau status pinned,
+- membuka catatan cepat lewat drawer,
+- mengedit catatan panjang lewat halaman detail,
+- menghubungkan catatan ke work, activities, atau routines.
+
+## History
+
+`History` adalah timeline otomatis untuk perubahan penting.
+
+Di halaman ini pengguna bisa:
+
+- mencari riwayat berdasarkan judul, deskripsi, kategori, atau event,
+- memfilter berdasarkan kategori item, jenis event, dan rentang tanggal,
 - membuka detail history di drawer kanan,
 - kembali ke item terkait jika item tersebut masih tersedia.
 
-## Catatan
+History mencatat event penting seperti created, updated, completed, missed, cancelled, deleted, pinned, dan unpinned.
 
-- Bahasa antarmuka dapat diubah dari menu `Settings`, sementara seluruh waktu aplikasi dikunci ke `Asia/Jakarta (WIB)`.
-- Default bahasa untuk preference baru adalah `English`, dan seluruh waktu sistem memakai `Asia/Jakarta`.
+## Reports
 
-- Pada form perencanaan `Work` dan `Activities`, status `Dibatalkan` tidak ditampilkan sebagai opsi input awal. Status itu hanya muncul pada daftar item untuk penyesuaian setelah item dibuat.
-- Daftar `Work` dan `Activities` sekarang sama-sama memiliki quick action `Selesai` dan `Dibatalkan` dengan tampilan yang konsisten.
-- Panel `Activities need attention` sekarang menyediakan aksi `Selesai` dan `Dibatalkan` untuk aktivitas yang sudah lewat waktu. Saat tombol `View` ditekan dari toast, toast akan menghilang sementara sampai panel ditutup lagi.
+`Reports` menampilkan ringkasan produktivitas.
+
+Di halaman ini pengguna bisa:
+
+- memilih periode harian, mingguan, atau bulanan,
+- melihat metrik pekerjaan dan aktivitas,
+- membaca grafik status, kategori, dan progres,
+- mengekspor laporan ke CSV, Excel, atau PDF.
+
+Semua periode laporan mengikuti waktu `Asia/Jakarta (WIB)`.
+
+## Settings
+
+`Settings` dipakai untuk pengaturan aplikasi dan data.
+
+Di halaman ini pengguna bisa:
+
+- mengubah nama dashboard,
+- memilih bahasa antarmuka `English` atau `Indonesia`,
+- memilih tema `Light`, `Dark`, atau `System`,
+- mengatur kategori aktivitas preferensi,
+- mengekspor dan mengimpor backup JSON,
+- mereset data work, activities, routines, notes, dan history,
+- membuka halaman ubah password.
+
+Reset data tidak menghapus akun login, tetapi mengosongkan data dashboard dan mengembalikan preferensi ke default.
