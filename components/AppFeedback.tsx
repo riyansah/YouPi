@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { cn } from "@/lib/utils";
+import { getFeedbackPanelClassName, getOutlineButtonClassName, getSemanticToneClassName, getSolidButtonClassName } from "@/lib/ui-state-styles";
 
 type ToastTone = "success" | "warning" | "info";
 
@@ -48,15 +49,15 @@ type AppFeedbackContextValue = {
 const AppFeedbackContext = createContext<AppFeedbackContextValue | null>(null);
 
 const toastToneStyles = {
-  success: "border-teal-200 bg-white text-slate-900 dark:border-teal-800 dark:bg-slate-900 dark:text-slate-100",
-  warning: "border-amber-200 bg-white text-slate-900 dark:border-amber-800 dark:bg-slate-900 dark:text-slate-100",
-  info: "border-blue-200 bg-white text-slate-900 dark:border-blue-800 dark:bg-slate-900 dark:text-slate-100"
-};
+  success: "success",
+  warning: "warning",
+  info: "info"
+} as const;
 
 const toastIconStyles = {
-  success: "text-teal-700 dark:text-teal-300",
-  warning: "text-amber-600 dark:text-amber-300",
-  info: "text-blue-700 dark:text-blue-300"
+  success: "text-emerald-700 dark:text-emerald-200",
+  warning: "text-amber-700 dark:text-amber-200",
+  info: "text-blue-700 dark:text-blue-200"
 };
 
 function ToastIcon({ tone }: { tone: ToastTone }) {
@@ -140,12 +141,12 @@ export function AppFeedbackProvider({ children }: { children: ReactNode }) {
     <AppFeedbackContext.Provider value={value}>
       {children}
 
-      <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-3">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-3 px-4 sm:px-0">
         {toasts.map((toast) => (
-          <div key={toast.id} className={cn("pointer-events-auto flex items-start gap-3 rounded border px-4 py-3 shadow-lg", toastToneStyles[toast.tone])}>
+          <div key={toast.id} className={cn(getFeedbackPanelClassName("toast"), getSemanticToneClassName(toastToneStyles[toast.tone]), "pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 text-left")}>
             <ToastIcon tone={toast.tone} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{toast.message}</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-50">{toast.message}</p>
               {toast.actionLabel && toast.onAction ? (
                 <button type="button" onClick={() => runToastAction(toast)} className="mt-2 text-xs font-bold text-teal-700 hover:text-teal-800 dark:text-teal-300 dark:hover:text-teal-200">
                   {toast.actionLabel}
@@ -153,7 +154,7 @@ export function AppFeedbackProvider({ children }: { children: ReactNode }) {
               ) : null}
             </div>
             {!toast.persistent ? (
-              <button type="button" onClick={() => dismissToast(toast.id)} className="-mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label={language === "id" ? "Tutup notifikasi" : "Dismiss notification"}>
+              <button type="button" onClick={() => dismissToast(toast.id)} className="-mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100" aria-label={language === "id" ? "Tutup notifikasi" : "Dismiss notification"}>
                 <X className="h-4 w-4" />
               </button>
             ) : null}
@@ -162,17 +163,10 @@ export function AppFeedbackProvider({ children }: { children: ReactNode }) {
       </div>
 
       {confirmState ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-          <div className="w-full max-w-md rounded border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+          <div className={getFeedbackPanelClassName("modal") + " w-full max-w-md"}>
             <div className="flex items-start gap-3">
-              <div
-                className={cn(
-                  "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                  confirmState.tone === "danger"
-                    ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200"
-                    : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200"
-                )}
-              >
+              <div className={cn("mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full", confirmState.tone === "danger" ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-100" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-100")}>
                 <TriangleAlert className="h-5 w-5" />
               </div>
               <div className="min-w-0">
@@ -182,17 +176,10 @@ export function AppFeedbackProvider({ children }: { children: ReactNode }) {
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={() => closeConfirm(false)} className="inline-flex items-center rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+              <button type="button" onClick={() => closeConfirm(false)} className={getOutlineButtonClassName()}>
                 {confirmState.cancelLabel}
               </button>
-              <button
-                type="button"
-                onClick={() => closeConfirm(true)}
-                className={cn(
-                  "inline-flex items-center rounded px-4 py-2 text-sm font-semibold text-white",
-                  confirmState.tone === "danger" ? "bg-rose-700 hover:bg-rose-800" : "bg-teal-700 hover:bg-teal-800"
-                )}
-              >
+              <button type="button" onClick={() => closeConfirm(true)} className={getSolidButtonClassName(confirmState.tone === "danger" ? "danger" : "brand")}>
                 {confirmState.confirmLabel}
               </button>
             </div>

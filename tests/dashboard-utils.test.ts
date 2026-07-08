@@ -119,11 +119,11 @@ test("task countdown distinguishes upcoming starts from active deadlines", () =>
     endTime: "18:00"
   };
   const upcomingNow = zonedTimestamp("2026-07-09", "12:00");
-  const upcomingCountdown = getTaskCountdownState(upcomingTask, upcomingNow);
+  const upcomingCountdown = getTaskCountdownState(upcomingTask, upcomingNow, APP_DEFAULT_TIME_ZONE, "en");
 
   assert.equal(getTaskStartTimestamp("2026-07-10", null), zonedTimestamp("2026-07-10"));
   assert.equal(upcomingCountdown?.mode, "upcoming");
-  assert.equal(upcomingCountdown?.label, "Mulai dalam");
+  assert.equal(upcomingCountdown?.label, "Starts in");
   assert.equal(upcomingCountdown?.displayLabel, "00:12:00:00");
 
   const activeTask = {
@@ -132,7 +132,7 @@ test("task countdown distinguishes upcoming starts from active deadlines", () =>
     startDate: "2026-07-09",
     deadline: "2026-07-09"
   };
-  const activeCountdown = getTaskCountdownState(activeTask, upcomingNow);
+  const activeCountdown = getTaskCountdownState(activeTask, upcomingNow, APP_DEFAULT_TIME_ZONE, "en");
 
   assert.equal(activeCountdown?.mode, "active");
   assert.equal(activeCountdown?.label, "Deadline");

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock3, X } from "lucide-react";
 import type { AppLanguage } from "@/lib/types";
 import { getFieldClassName, getFieldMessageClassName } from "@/lib/field-styles";
+import { getIconButtonClassName, getInteractiveSurfaceClassName } from "@/lib/ui-state-styles";
 import { cn } from "@/lib/utils";
 
 type PickerMode = "hour" | "minute";
@@ -175,13 +176,13 @@ export function TimePicker({ id, label, value, onChange, placeholder, allowClear
           disabled={disabled}
         >
           <span className={value ? "text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}>{value || text.placeholder}</span>
-          <Clock3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <Clock3 className="h-4 w-4 text-slate-500 dark:text-slate-300" />
         </button>
         {allowClear ? (
           <button
             type="button"
             onClick={clearValue}
-            className={cn("inline-flex h-10 w-10 items-center justify-center rounded border text-slate-600 dark:text-slate-200", disabled ? "cursor-not-allowed border-slate-200 bg-slate-100 opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500" : "border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800")}
+            className={cn(getIconButtonClassName(), disabled ? "cursor-not-allowed opacity-70" : "")}
             aria-label={`${text.clear} ${label.toLowerCase()}`}
             disabled={disabled}
           >
@@ -196,18 +197,18 @@ export function TimePicker({ id, label, value, onChange, placeholder, allowClear
         <div
           role="dialog"
           aria-label={`${text.choose} ${label.toLowerCase()}`}
-          className="absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          className={getInteractiveSurfaceClassName({ selected: true }) + " absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] p-4"}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="inline-flex rounded border border-slate-200 p-1 dark:border-slate-700">
+            <div className="inline-flex rounded-lg border border-slate-200 p-1 dark:border-slate-700">
               {(["hour", "minute"] as PickerMode[]).map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => setMode(item)}
                   className={cn(
-                    "rounded px-3 py-1 text-xs font-semibold",
-                    mode === item ? "bg-teal-700 text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                    "rounded-md px-3 py-1 text-xs font-semibold transition",
+                    mode === item ? "bg-teal-700 text-white dark:bg-teal-600" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   )}
                 >
                   {item === "hour" ? text.hour : text.minute}
@@ -217,7 +218,7 @@ export function TimePicker({ id, label, value, onChange, placeholder, allowClear
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              className={getIconButtonClassName() + " h-8 w-8"}
               aria-label={text.close}
             >
               <X className="h-4 w-4" />
@@ -229,8 +230,8 @@ export function TimePicker({ id, label, value, onChange, placeholder, allowClear
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{text.format}</p>
           </div>
 
-          <div className="relative mx-auto h-56 w-56 rounded-full border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
-            <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-700" />
+          <div className="relative mx-auto h-56 w-56 rounded-full border border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800/90">
+            <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-700 dark:bg-teal-400" />
             {values.map((item) => {
               const selected = mode === "hour" ? draftHours === item.value : draftMinutes === item.value;
               const position = getOptionPosition(item);
@@ -241,8 +242,8 @@ export function TimePicker({ id, label, value, onChange, placeholder, allowClear
                   type="button"
                   onClick={() => (mode === "hour" ? selectHour(item.value) : selectMinute(item.value))}
                   className={cn(
-                    "absolute flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
-                    selected ? "bg-teal-700 text-white shadow" : "text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-slate-700"
+                    "absolute flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-xs font-semibold tabular-nums transition",
+                    selected ? "bg-teal-700 text-white shadow dark:bg-teal-500" : "text-slate-700 hover:bg-white dark:text-slate-100 dark:hover:bg-slate-700"
                   )}
                   style={position}
                   aria-label={mode === "hour" ? `${text.hour} ${item.label}` : `${text.minute} ${item.label}`}

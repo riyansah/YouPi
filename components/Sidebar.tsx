@@ -9,6 +9,7 @@ import { useDashboardStore } from "@/lib/dashboard-store";
 import { useNow } from "@/lib/use-now";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/i18n";
 import { getAppRoutes } from "@/lib/navigation";
+import { getOutlineButtonClassName, getSemanticChipClassName } from "@/lib/ui-state-styles";
 import { cn, countActivitiesNeedingAction, countActiveWorkItems } from "@/lib/utils";
 import brandIcon from "@/src/image2.png";
 
@@ -55,26 +56,18 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
   function getBadgeCopy(href: keyof typeof badges, count: number) {
     if (href === "/tasks") {
-      return language === "id"
-        ? `${count} pekerjaan sedang berjalan`
-        : `${count} work items in progress`;
+      return language === "id" ? `${count} pekerjaan sedang berjalan` : `${count} work items in progress`;
     }
 
-    return language === "id"
-      ? `${count} aktivitas butuh aksi`
-      : `${count} activities need action`;
+    return language === "id" ? `${count} aktivitas butuh aksi` : `${count} activities need action`;
   }
 
   function getBadgeClassName(href: keyof typeof badges, active: boolean) {
     if (href === "/tasks") {
-      return active
-        ? "bg-blue-700 text-white dark:bg-blue-300 dark:text-slate-950"
-        : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-100";
+      return active ? "bg-blue-200 text-blue-950 dark:bg-blue-200 dark:text-slate-950" : getSemanticChipClassName("info");
     }
 
-    return active
-      ? "bg-amber-600 text-white dark:bg-amber-300 dark:text-slate-950"
-      : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-100";
+    return active ? "bg-amber-200 text-amber-950 dark:bg-amber-200 dark:text-slate-950" : getSemanticChipClassName("warning");
   }
 
   return (
@@ -92,17 +85,17 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="mb-8 flex items-center justify-between">
-          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-3 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500">
-            <Image src={brandIcon} alt={BRAND_NAME} className="h-11 w-11 shrink-0 rounded-md object-cover" priority />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold uppercase text-teal-700 dark:text-teal-300">{BRAND_NAME}</span>
-              <span className="block truncate text-lg font-bold text-slate-950 dark:text-slate-50">{BRAND_TAGLINE}</span>
+        <div className="mb-8 flex items-start justify-between gap-3">
+          <Link href="/dashboard" onClick={onClose} className="flex min-w-0 flex-1 items-center gap-3 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <Image src={brandIcon} alt={BRAND_NAME} className="h-10 w-10 shrink-0 rounded-md object-cover sm:h-11 sm:w-11" priority />
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block text-sm font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">{BRAND_NAME}</span>
+              <span className="mt-0.5 block text-[15px] font-bold text-slate-950 dark:text-slate-50">{BRAND_TAGLINE}</span>
             </span>
           </Link>
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200 lg:hidden"
+            className={getOutlineButtonClassName() + " h-10 w-10 justify-center px-0 lg:hidden"}
             onClick={onClose}
             aria-label={language === "id" ? "Tutup sidebar" : "Close sidebar"}
           >
@@ -125,9 +118,9 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "group flex items-center gap-3 rounded px-3 py-3 text-sm font-medium transition",
+                  "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition",
                   active
-                    ? "bg-teal-50 text-teal-800 ring-1 ring-inset ring-teal-200 dark:bg-teal-950/60 dark:text-teal-100 dark:ring-teal-800"
+                    ? "bg-teal-50 text-teal-900 ring-1 ring-inset ring-teal-200 dark:bg-teal-950/40 dark:text-teal-50 dark:ring-teal-700"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50"
                 )}
               >
@@ -137,7 +130,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                   <span className="relative flex shrink-0 items-center">
                     <span
                       className={cn(
-                        "inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
+                        "inline-flex min-w-6 items-center justify-center rounded-full border px-2 py-0.5 text-xs font-semibold",
                         badgeKey ? getBadgeClassName(badgeKey, active) : ""
                       )}
                       aria-label={badgeCopy || `${item.label}: ${badgeCount}`}
@@ -158,18 +151,12 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         </nav>
 
         <div className="mt-auto space-y-3">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="inline-flex w-full items-center justify-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
+          <button type="button" onClick={handleLogout} className={getOutlineButtonClassName() + " w-full justify-center gap-2"}>
             <LogOut className="h-4 w-4" />
             {language === "id" ? "Logout" : "Log out"}
           </button>
-          <div className="rounded border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {language === "id" ? "Fokus hari ini" : "Today's focus"}
-            </p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/80">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{language === "id" ? "Fokus hari ini" : "Today's focus"}</p>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               {language === "id"
                 ? "Jaga ritme kerja, catat aktivitas, dan tutup hari dengan laporan."

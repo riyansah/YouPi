@@ -2,6 +2,8 @@
 
 **YouPi** is a personal activity management dashboard for organizing work, activities, routines, history, reports, and settings in one local account.
 
+`CHANGELOG.md` now tracks the project history from the initial dashboard milestone through the current release instead of only the latest incremental entries.
+
 ## Requirements
 
 - Node.js 22.5+
@@ -35,7 +37,7 @@ The app runs at `http://127.0.0.1:3000`.
 - New logo source: `src/image2.png`
 - Default UI language: `English`
 - Language switcher: available in `Settings` with `English` and `Indonesia`
-- Main screens, auth flows, shared task/activity lists, and report controls now follow the selected UI language.
+- Main screens, auth flows, shared task/activity lists, dashboard countdown badges, and report controls now follow the selected UI language.
 
 ## Login and Data
 
@@ -52,7 +54,7 @@ SQLITE_PATH=./data/activity.sqlite
 
 ## Main Features
 
-Shared field states now cover default, filled, focus, error, and disabled appearances across the main forms, filters, and auth fields.
+Shared field states now cover default, filled, focus, error, and disabled appearances across the main forms, filters, and auth fields, with stronger dark-theme contrast for borders, fills, placeholders, and focus rings.
 
 - Single-user auth with register, login, logout, password change, and auth reset.
 - YouPi dashboard with summary cards, charts, nearest deadlines, today agenda, quick mobile actions, and time/date rendering that is fixed to Asia/Jakarta (WIB).
@@ -60,7 +62,7 @@ Shared field states now cover default, filled, focus, error, and disabled appear
 - Notes hub with personal and linked notes, pinned notes, search, category filters, quick drawer editing, and full-page editing for longer content.
 - History hub with an automatic timeline of important created, updated, completed, missed, cancelled, deleted, pinned, and unpinned events.
 - Work management with time-aware status, priority, matched quick `Selesai` and `Dibatalkan` actions, active-work sidebar badges with explanatory tooltips, optional start/end times, and planning forms that no longer expose cancelled as a creation option.
-- The shared page header date/time widget now uses a richer card-style presentation, and overdue activity toasts step aside while the `Activities need attention` panel is open.
+- The shared page header date/time widget now shows weekday, full date, and 24-hour server time in one line with softer contrast that matches the surrounding UI, the main brand lockups keep `YouPi` and `You Plan It` fully visible, and overdue activity toasts step aside while the `Activities need attention` panel is open.
 - Activities with date/category filters, overdue-action sidebar badges with explanatory tooltips, matched quick `Selesai` and `Dibatalkan` actions, overdue notifier actions for `Selesai` and `Dibatalkan`, and preference-based filtering.
 - Routines for recurring weekly schedules.
 - Reports with daily, weekly, and monthly views plus CSV, Excel, and PDF export that use Asia/Jakarta (WIB).

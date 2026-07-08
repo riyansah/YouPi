@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.49 - 2026-07-08
+
+- Expanded the shared header server clock to show weekday, full date, and 24-hour time in one line, and softened its light/dark contrast so the panel sits more naturally beside the rest of the UI.
+
+## 0.7.48 - 2026-07-08
+
+- Refreshed shared dark-theme state styling across fields, chips, cards, quick actions, toasts, and confirmation surfaces, switched the server clock to a single-line presentation, and widened the header/sidebar brand lockups so `YouPi` and `You Plan It` stay fully readable.
+
+## 0.7.46 - 2026-07-08
+
+- Slimmed down the mobile page-header server clock into a dedicated compact layout instead of reusing the desktop card, and increased dark-theme contrast so the clock panel, icon, and text remain clearer on dark backgrounds.
+
+## 0.7.45 - 2026-07-08
+
+- Fixed dashboard and shared work countdown badges so `Deadline` and `Starts in` now follow the language selected in `Settings`, instead of staying partially in Indonesian after switching to English.
+
 ## 0.7.44 - 2026-07-07
 
 - Forced the entire app onto `Asia/Jakarta` by removing the Settings timezone selector, normalizing imported settings/backups to `Asia/Jakarta`, and updating Settings copy to make the fixed WIB behavior explicit.
@@ -17,6 +33,10 @@
 ## 0.7.41 - 2026-07-07
 
 - Matched the quick `Selesai` and `Dibatalkan` actions across Work and Activities, added sidebar badges for running Work and overdue Activities, changed Schedule so past Routine occurrences resolve as done instead of missed, and added tooltip-driven semantic badge colors in the sidebar.
+
+## 0.7.40 - 2026-07-07
+
+- Polished the dashboard shell and planning flows around the new schedule-aware experience, including tighter navigation continuity, countdown-driven work visibility, and supporting documentation updates for the expanded main menus.
 
 ## 0.7.39 - 2026-07-07
 
@@ -83,3 +103,11 @@
 ## 0.7.26 - 2026-07-04
 
 - Centered the dashboard weekly progress legend, removed dashboard agenda complete actions for activities, and added the uploaded brand icon plus a larger clickable mobile header brand area to match the sidebar.
+
+## 0.7.25 And Earlier - 2026-07-04
+
+- Started the project as a personal activity dashboard with local work and activity management, dashboard summaries, filtering, persistence, and the first reusable pagination, storage, and utility layers.
+- Added the first major dashboard navigation expansion with nearest-deadline visibility, richer task tables, settings/task/activity pages, menu guidance docs, and the groundwork for the later report and settings flows.
+- Introduced recurring routines and today-agenda style scheduling on top of the original dashboard so work, activities, and routines could be managed together before the later Schedule, Notes, and History modules arrived.
+- Added local database-backed authentication, login/register/change-password flows, middleware protection, auth reset tooling, and the first API-backed dashboard data sync so the app could move from a local-only dashboard into a protected single-user system.
+- Expanded reports, auth UX, feedback surfaces, containers/runtime assets, and export foundations before the later versioned changelog entries began tracking smaller release steps in more detail.

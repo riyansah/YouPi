@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
+import { getIconToneClassName, getInteractiveSurfaceClassName } from "@/lib/ui-state-styles";
 
 interface StatCardProps {
   title: string;
@@ -11,12 +12,12 @@ interface StatCardProps {
 }
 
 const tones = {
-  teal: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-100",
-  blue: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100",
-  amber: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-100",
-  rose: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-100",
-  slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100"
-};
+  teal: "teal",
+  blue: "blue",
+  amber: "amber",
+  rose: "rose",
+  slate: "slate"
+} as const;
 
 export function StatCard({ title, value, description, href, icon: Icon, tone = "slate" }: StatCardProps) {
   const content = (
@@ -27,7 +28,7 @@ export function StatCard({ title, value, description, href, icon: Icon, tone = "
           <p className="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">{value}</p>
         </div>
         {Icon ? (
-          <div className={`flex h-11 w-11 items-center justify-center rounded ${tones[tone]}`}>
+          <div className={getIconToneClassName(tones[tone]) + " h-11 w-11 rounded-xl border border-white/70 dark:border-white/10"}>
             <Icon className="h-5 w-5" />
           </div>
         ) : null}
@@ -36,8 +37,7 @@ export function StatCard({ title, value, description, href, icon: Icon, tone = "
     </>
   );
 
-  const className =
-    "block rounded border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/80";
+  const className = getInteractiveSurfaceClassName() + " block p-5 focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   if (href) {
     return (

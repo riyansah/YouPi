@@ -10,6 +10,7 @@ import { AppFeedbackProvider, useAppFeedback } from "@/components/AppFeedback";
 import { Sidebar } from "@/components/Sidebar";
 import { DashboardDataProvider, useDashboardStore } from "@/lib/dashboard-store";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/i18n";
+import { getOutlineButtonClassName } from "@/lib/ui-state-styles";
 import brandIcon from "@/src/image2.png";
 
 interface LayoutProps {
@@ -66,10 +67,10 @@ function GlobalQuickActions() {
                     key={action.href}
                     type="button"
                     onClick={() => handleAction(action.href)}
-                    className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                    className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
                   >
                     <span>{action.label}</span>
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-white">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-white dark:bg-teal-600">
                       <Icon className="h-4 w-4" />
                     </span>
                   </button>
@@ -79,7 +80,7 @@ function GlobalQuickActions() {
           <button
             type="button"
             onClick={() => setOpen((current) => !current)}
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal-700 text-white shadow-xl transition hover:bg-teal-800"
+            className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal-700 text-white shadow-xl transition hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500"
             aria-label={open ? (settings.language === "id" ? "Tutup aksi cepat" : "Close quick actions") : settings.language === "id" ? "Buka aksi cepat" : "Open quick actions"}
             aria-expanded={open}
           >
@@ -102,17 +103,17 @@ function AuthenticatedShell({ children }: LayoutProps) {
         <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 lg:hidden">
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-200"
+            className={getOutlineButtonClassName() + " h-10 w-10 justify-center px-0"}
             onClick={() => setSidebarOpen(true)}
             aria-label={settings.language === "id" ? "Buka sidebar" : "Open sidebar"}
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard" className="ml-2 flex min-w-0 items-center gap-3 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500">
-            <Image src={brandIcon} alt={BRAND_NAME} className="h-10 w-10 shrink-0 rounded-md object-cover" priority />
-            <span className="min-w-0">
-              <span className="block truncate text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">{BRAND_NAME}</span>
-              <span className="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">{BRAND_TAGLINE}</span>
+          <Link href="/dashboard" className="ml-2 flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <Image src={brandIcon} alt={BRAND_NAME} className="h-9 w-9 shrink-0 rounded-md object-cover" priority />
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">{BRAND_NAME}</span>
+              <span className="block text-[13px] font-bold text-slate-900 dark:text-slate-100">{BRAND_TAGLINE}</span>
             </span>
           </Link>
         </header>

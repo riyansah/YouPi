@@ -18,6 +18,7 @@ import type {
   ActivityCategory,
   ActivityStatus,
   ActivitySummary,
+  AppLanguage,
   ReportPeriod,
   Routine,
   ScheduleDisplayStatus,
@@ -162,16 +163,18 @@ function padCountdown(value: number) {
   return String(value).padStart(2, "0");
 }
 
-function formatOverdueCompact(days: number, hours: number, minutes: number) {
+function formatOverdueCompact(days: number, hours: number, minutes: number, language: AppLanguage = "id") {
   if (days > 0) {
-    return `Terlambat ${padCountdown(days)} Hari ${padCountdown(hours)} Jam`;
+    return language === "id"
+      ? `Terlambat ${padCountdown(days)} Hari ${padCountdown(hours)} Jam`
+      : `Overdue ${padCountdown(days)}d ${padCountdown(hours)}h`;
   }
 
   if (hours > 0) {
-    return `Terlambat ${padCountdown(hours)} Jam`;
+    return language === "id" ? `Terlambat ${padCountdown(hours)} Jam` : `Overdue ${padCountdown(hours)}h`;
   }
 
-  return `Terlambat ${padCountdown(minutes)} Menit`;
+  return language === "id" ? `Terlambat ${padCountdown(minutes)} Menit` : `Overdue ${padCountdown(minutes)}m`;
 }
 
 function getCountdownToneByDiff(diff: number): CountdownTone {
@@ -186,17 +189,19 @@ function getCountdownToneByDiff(diff: number): CountdownTone {
   return "green";
 }
 
-function getTimestampCountdownState(timestamp: number, now = Date.now()): DeadlineCountdownState {
+function getTimestampCountdownState(timestamp: number, now = Date.now(), language: AppLanguage = "id"): DeadlineCountdownState {
   const diff = timestamp - now;
   const { days, hours, minutes, seconds } = getCountdownParts(diff);
-  const detail = `${days} hari ${hours} jam ${minutes} menit ${seconds} detik`;
+  const detail = language === "id"
+    ? `${days} hari ${hours} jam ${minutes} menit ${seconds} detik`
+    : `${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`;
 
   return {
-    fullLabel: diff >= 0 ? `${detail} lagi` : `Terlambat ${detail}`,
+    fullLabel: diff >= 0 ? (language === "id" ? `${detail} lagi` : `${detail} remaining`) : language === "id" ? `Terlambat ${detail}` : `Overdue ${detail}`,
     displayLabel:
       diff >= 0
         ? `${padCountdown(days)}:${padCountdown(hours)}:${padCountdown(minutes)}:${padCountdown(seconds)}`
-        : formatOverdueCompact(days, hours, minutes),
+        : formatOverdueCompact(days, hours, minutes, language),
     isOverdue: diff < 0,
     tone: getCountdownToneByDiff(diff)
   };
@@ -326,11 +331,11 @@ export function getDeadlineCountdownTone(value: string, now = Date.now(), endTim
   return getCountdownToneByDiff(getDeadlineTimestamp(value, endTime, timeZone) - now);
 }
 
-export function getDeadlineCountdownState(value: string, now = Date.now(), endTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE): DeadlineCountdownState {
-  return getTimestampCountdownState(getDeadlineTimestamp(value, endTime, timeZone), now);
+export function getDeadlineCountdownState(value: string, now = Date.now(), endTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE, language: AppLanguage = "id"): DeadlineCountdownState {
+  return getTimestampCountdownState(getDeadlineTimestamp(value, endTime, timeZone), now, language);
 }
 
-export function getTaskCountdownState(task: Task, now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): TaskCountdownState | null {
+export function getTaskCountdownState(task: Task, now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE, language: AppLanguage = "id"): TaskCountdownState | null {
   const status = getEffectiveTaskStatus(task, now, timeZone);
 
   if (isTerminalTaskStatus(status)) {
@@ -339,14 +344,14 @@ export function getTaskCountdownState(task: Task, now = Date.now(), timeZone = A
 
   if (status === "Akan Datang") {
     return {
-      ...getTimestampCountdownState(getTaskStartTimestamp(task.startDate, task.startTime, timeZone), now),
+      ...getTimestampCountdownState(getTaskStartTimestamp(task.startDate, task.startTime, timeZone), now, language),
       mode: "upcoming",
-      label: "Mulai dalam"
+      label: language === "id" ? "Mulai dalam" : "Starts in"
     };
   }
 
   return {
-    ...getDeadlineCountdownState(task.deadline, now, task.endTime, timeZone),
+    ...getDeadlineCountdownState(task.deadline, now, task.endTime, timeZone, language),
     mode: "active",
     label: "Deadline"
   };

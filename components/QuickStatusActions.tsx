@@ -1,6 +1,7 @@
 "use client";
 
 import { Ban, CheckCircle2 } from "lucide-react";
+import { getOutlineButtonClassName } from "@/lib/ui-state-styles";
 import type { AppLanguage } from "@/lib/types";
 
 interface QuickStatusActionsProps {
@@ -9,9 +10,6 @@ interface QuickStatusActionsProps {
   onComplete: () => void;
   onCancel: () => void;
 }
-
-const actionButtonClassName =
-  "inline-flex items-center gap-2 rounded border px-3 py-2 text-xs font-semibold transition";
 
 export function QuickStatusActions({ itemTitle, language = "id", onComplete, onCancel }: QuickStatusActionsProps) {
   const text = {
@@ -26,7 +24,7 @@ export function QuickStatusActions({ itemTitle, language = "id", onComplete, onC
       <button
         type="button"
         onClick={onComplete}
-        className={`${actionButtonClassName} border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-900 dark:text-teal-100 dark:hover:bg-teal-950/50`}
+        className={getOutlineButtonClassName("brand") + " gap-2 px-3 py-2 text-xs"}
         aria-label={`${text.markComplete} ${itemTitle} ${text.complete.toLowerCase()}`}
       >
         <CheckCircle2 className="h-4 w-4" />
@@ -35,7 +33,7 @@ export function QuickStatusActions({ itemTitle, language = "id", onComplete, onC
       <button
         type="button"
         onClick={onCancel}
-        className={`${actionButtonClassName} border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800`}
+        className={getOutlineButtonClassName("danger") + " gap-2 px-3 py-2 text-xs"}
         aria-label={`${text.markCancel} ${itemTitle} ${text.cancel.toLowerCase()}`}
       >
         <Ban className="h-4 w-4" />

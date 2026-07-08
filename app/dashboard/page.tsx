@@ -9,19 +9,20 @@ import { DailyActivityChart, TaskStatusChart, WeeklyProgressChart } from "@/comp
 import { StatCard } from "@/components/StatCard";
 import { tActivityStatus, tAgendaType, tCategory, tPriority, tTaskStatus } from "@/lib/i18n";
 import { useDashboardStore } from "@/lib/dashboard-store";
+import { getCountdownChipClassName, getInteractiveSurfaceClassName, getSemanticChipClassName } from "@/lib/ui-state-styles";
 import { buildTodayAgendaItems, cn, formatDate, formatDateWithWeekday, formatTimeRange, getEffectiveTaskStatus, getTaskCountdownState, paginateItems, sortTasksByNearestDeadline, summarizeActivities, summarizeTasks, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 
 const dashboardPageSize = 4;
 const countdownToneStyles = {
-  green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  red: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-100",
-  upcoming: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-100"
-};
-const agendaTypeStyles = { Aktivitas: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-100", Rutinitas: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-100" };
-const priorityStyles = { Rendah: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100", Sedang: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100", Tinggi: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-100" };
-const statusStyles = { "Akan Datang": "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-100", Direncanakan: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100", Berjalan: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100", Selesai: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-100", Tertunda: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-100", Dibatalkan: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100" };
+  green: "success",
+  amber: "warning",
+  red: "danger",
+  upcoming: "upcoming"
+} as const;
+const agendaTypeStyles = { Aktivitas: "success", Rutinitas: "upcoming" } as const;
+const priorityStyles = { Rendah: "neutral", Sedang: "info", Tinggi: "danger" } as const;
+const statusStyles = { "Akan Datang": "upcoming", Direncanakan: "neutral", Berjalan: "info", Selesai: "success", Tertunda: "warning", Dibatalkan: "neutral" } as const;
 
 export default function DashboardPage() {
   const { tasks, activities, routines, settings } = useDashboardStore();
@@ -84,16 +85,16 @@ export default function DashboardPage() {
               const effectiveStatus = getEffectiveTaskStatus(task, now ?? Date.now(), timeZone);
               const timeRange = task.endTime ? ` · ${formatTimeRange(task.startTime || "00:00", task.endTime)}` : "";
               return (
-                <Link key={task.id} href={`/tasks?taskId=${task.id}`} className="block rounded py-3 first:pt-0 last:pb-0 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500 dark:hover:bg-slate-800/70">
+                <Link key={task.id} href={`/tasks?taskId=${task.id}`} className={getInteractiveSurfaceClassName() + " block border-0 rounded-lg px-3 py-3 first:mt-0 last:mb-0 focus:outline-none focus:ring-2 focus:ring-teal-500"}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0"><p className="font-medium text-slate-950 dark:text-slate-50">{task.title}</p><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.description}</p></div>
-                    <span className={cn("shrink-0 rounded px-2 py-1 text-xs font-semibold", statusStyles[effectiveStatus])}>{tTaskStatus(effectiveStatus, language)}</span>
+                    <span className={cn("shrink-0", getSemanticChipClassName(statusStyles[effectiveStatus]))}>{tTaskStatus(effectiveStatus, language)}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <p className="text-slate-500 dark:text-slate-400">{text.deadline} {formatDate(task.deadline, language, timeZone)}{timeRange}</p>
                     {now === null ? <p className="font-medium text-slate-500 dark:text-slate-400">{text.loadingCountdown}</p> : (() => {
-                      const countdown = getTaskCountdownState(task, now, timeZone);
-                      return countdown ? <div className={cn("inline-flex max-w-full shrink-0 rounded-md border px-2 py-1 text-xs font-semibold tabular-nums leading-none sm:text-sm", countdown.mode === "upcoming" ? countdownToneStyles.upcoming : countdownToneStyles[countdown.tone])} aria-label={`${countdown.label}: ${countdown.fullLabel}`} title={`${countdown.label}: ${countdown.fullLabel}`}><span className="mr-1 font-bold">{countdown.label}</span><span className="truncate">{countdown.displayLabel}</span></div> : null;
+                      const countdown = getTaskCountdownState(task, now, timeZone, language);
+                      return countdown ? <div className={cn("inline-flex max-w-full shrink-0 items-center gap-1", getCountdownChipClassName(countdown.mode === "upcoming" ? countdownToneStyles.upcoming : countdownToneStyles[countdown.tone]))} aria-label={`${countdown.label}: ${countdown.fullLabel}`} title={`${countdown.label}: ${countdown.fullLabel}`}><span className="font-bold">{countdown.label}</span><span className="truncate">{countdown.displayLabel}</span></div> : null;
                     })()}
                   </div>
                 </Link>
@@ -108,12 +109,12 @@ export default function DashboardPage() {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{formatDateWithWeekday(today, language, timeZone)}</p>
           <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-700">
             {now === null ? <p className="text-sm text-slate-500 dark:text-slate-400">{text.loadingAgenda}</p> : paginatedAgenda.totalItems ? paginatedAgenda.items.map((item) => (
-              <div key={`${item.type}-${item.id}`} className="rounded py-3 first:pt-0 last:pb-0 hover:bg-slate-50 dark:hover:bg-slate-800/70">
-                <Link href={item.href} className="block rounded focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <div key={`${item.type}-${item.id}`} className="py-3 first:pt-0 last:pb-0">
+                <Link href={item.href} className={getInteractiveSurfaceClassName() + " block rounded-lg border-0 px-3 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn("rounded px-2 py-1 text-xs font-semibold", agendaTypeStyles[item.type])}>{tAgendaType(item.type, language)}</span>
-                    {item.status ? <span className={cn("rounded px-2 py-1 text-xs font-semibold", statusStyles[item.status])}>{tActivityStatus(item.status, language)}</span> : null}
-                    {item.type === "Rutinitas" && item.priority ? <span className={cn("rounded px-2 py-1 text-xs font-semibold", priorityStyles[item.priority])}>{tPriority(item.priority, language)}</span> : null}
+                    <span className={cn(getSemanticChipClassName(agendaTypeStyles[item.type]))}>{tAgendaType(item.type, language)}</span>
+                    {item.status ? <span className={cn(getSemanticChipClassName(statusStyles[item.status]))}>{tActivityStatus(item.status, language)}</span> : null}
+                    {item.type === "Rutinitas" && item.priority ? <span className={cn(getSemanticChipClassName(priorityStyles[item.priority]))}>{tPriority(item.priority, language)}</span> : null}
                   </div>
                   <p className="mt-2 font-medium text-slate-950 dark:text-slate-50">{item.title}</p>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{formatTimeRange(item.startTime, item.endTime)} · {item.type === "Aktivitas" ? tCategory(item.metaLabel as never, language) : item.metaLabel}</p>

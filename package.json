@@ -1,6 +1,6 @@
 {
   "name": "personal-activity-dashboard",
-  "version": "0.7.44",
+  "version": "0.7.49",
   "private": true,
   "scripts": {
     "dev": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/next/dist/bin/next dev",
