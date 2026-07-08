@@ -1,3 +1,5 @@
+<img width="1445" height="487" alt="image" src="https://github.com/user-attachments/assets/410faec8-9aaa-4249-836c-282f6a77cef4" />
+
 # YouPi
 
 YouPi is a single-user personal activity dashboard for managing work, activities, routines, schedules, notes, history, reports, and settings in one local web app.
