@@ -55,6 +55,13 @@ SQLITE_PATH=./data/activity.sqlite
 
 Settings can export and import JSON backups. A sample backup is available at [docs/sample-backup-project-manager-2026-07.json](docs/sample-backup-project-manager-2026-07.json).
 
+
+## REST API
+
+Authenticated REST endpoints are available for Work, Activities, Routines, Notes, Settings, read-only Dashboard/Schedule/Reports/History data, backup restore/export, and dashboard reset. Agents should log in through `POST /api/auth/login` and reuse the session cookie.
+
+See [docs/api.md](docs/api.md) and [docs/openapi.json](docs/openapi.json).
+
 ## Reset Auth
 
 Interactive reset:

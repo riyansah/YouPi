@@ -12,10 +12,10 @@ import { TimePicker } from "@/components/TimePicker";
 import { getFieldClassName, getFieldMessageClassName } from "@/lib/field-styles";
 import { tPriority, tTaskStatus } from "@/lib/i18n";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { getLinkedNotes, relinkNotesForTarget, unlinkNotesForTarget } from "@/lib/notes";
+import { getLinkedNotes } from "@/lib/notes";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
 import { taskFormStatuses, taskPriorities } from "@/lib/types";
-import { getEffectiveTaskStatus, makeId, normalizeTaskStatusForTime, nowIso, paginateItems, restoreItemAtIndex, todayDate } from "@/lib/utils";
+import { getEffectiveTaskStatus, normalizeTaskStatusForTime, nowIso, paginateItems, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import { validateTaskForm } from "@/lib/validation";
 
@@ -77,7 +77,7 @@ function translateTaskErrors(errors: string[], language: "en" | "id") {
 }
 
 function TasksPageContent() {
-  const { tasks, setTasks, notes, setNotes, settings } = useDashboardStore();
+  const { tasks, createTask, updateTask, deleteTask, notes, updateNote, settings } = useDashboardStore();
   const language = settings.language;
   const timeZone = settings.timeZone;
   const { confirm, showToast } = useAppFeedback();
@@ -236,7 +236,7 @@ function TasksPageContent() {
     router.replace("/tasks", { scroll: false });
   }, [composeQuery, currentPage, editingId, priorityFilter, router, selectedTaskId, statusFilter, tasks]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedForm = normalizeTaskForm(form, timeZone);
     const errors = validateTaskForm(normalizedForm);
@@ -249,15 +249,19 @@ function TasksPageContent() {
     setFormErrors([]);
     const timestamp = nowIso();
 
-    if (editingId) {
-      setTasks((current) => current.map((task) => task.id === editingId ? { ...task, ...normalizedForm, completedAt: normalizedForm.status === "Selesai" ? task.completedAt || timestamp : null, updatedAt: timestamp } : task));
-    } else {
-      const task: Task = { id: makeId("task"), ...normalizedForm, completedAt: normalizedForm.status === "Selesai" ? timestamp : null, createdAt: timestamp, updatedAt: timestamp };
-      setTasks((current) => [task, ...current]);
-      showToast({ message: `${language === "id" ? "Pekerjaan" : "Work item"} "${task.title}" ${text.added}` });
-    }
+    try {
+      if (editingId) {
+        const currentTask = tasks.find((task) => task.id === editingId);
+        await updateTask(editingId, { ...normalizedForm, completedAt: normalizedForm.status === "Selesai" ? currentTask?.completedAt || timestamp : null });
+      } else {
+        const task = await createTask({ ...normalizedForm, completedAt: normalizedForm.status === "Selesai" ? timestamp : null });
+        showToast({ message: (language === "id" ? "Pekerjaan" : "Work item") + " \"" + task.title + "\" " + text.added });
+      }
 
-    resetForm();
+      resetForm();
+    } catch (error) {
+      setFormErrors([error instanceof Error ? error.message : "Failed to save work item."]);
+    }
   }
 
   function handleEdit(task: Task) {
@@ -281,15 +285,13 @@ function TasksPageContent() {
       return;
     }
 
-    const deletedIndex = tasks.findIndex((item) => item.id === id);
     const affectedNoteIds = notes.filter((note) => note.linkedType === "work" && note.linkedId === id).map((note) => note.id);
-    setTasks((current) => current.filter((item) => item.id !== id));
-    setNotes((current) => unlinkNotesForTarget(current, "work", id, nowIso()));
+    await deleteTask(id);
     if (editingId === id) {
       resetForm();
     }
     if (task) {
-      showToast({ message: `${language === "id" ? "Pekerjaan" : "Work item"} "${task.title}" ${text.deleted}`, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { setTasks((current) => restoreItemAtIndex(current, task, deletedIndex)); setNotes((current) => relinkNotesForTarget(current, affectedNoteIds, "work", id, nowIso())); } });
+      showToast({ message: (language === "id" ? "Pekerjaan" : "Work item") + " \"" + task.title + "\" " + text.deleted, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { void createTask(task).then(() => Promise.all(affectedNoteIds.map((noteId) => updateNote(noteId, { linkedType: "work", linkedId: id })))); } });
     } else {
       showToast({ message: text.deletedOk });
     }
@@ -300,17 +302,14 @@ function TasksPageContent() {
     const nextStatus = task ? normalizeTaskStatusForTime(status, task.startDate, task.startTime, now ?? Date.now(), timeZone) : status;
     const justCompleted = task && getEffectiveTaskStatus(task, now ?? Date.now()) !== "Selesai" && nextStatus === "Selesai";
     const timestamp = nowIso();
-    setTasks((current) => current.map((item) => {
-      if (item.id !== id) {
-        return item;
-      }
-
-      const normalizedStatus = normalizeTaskStatusForTime(status, item.startDate, item.startTime, now ?? Date.now(), timeZone);
-      return { ...item, status: normalizedStatus, completedAt: normalizedStatus === "Selesai" ? item.completedAt || timestamp : null, updatedAt: timestamp };
-    }));
+    const currentTask = tasks.find((item) => item.id === id);
+    if (currentTask) {
+      const normalizedStatus = normalizeTaskStatusForTime(status, currentTask.startDate, currentTask.startTime, now ?? Date.now(), timeZone);
+      void updateTask(id, { status: normalizedStatus, completedAt: normalizedStatus === "Selesai" ? currentTask.completedAt || timestamp : null });
+    }
 
     if (justCompleted && task) {
-      showToast({ message: `${language === "id" ? "Pekerjaan" : "Work item"} "${task.title}" ${text.completed}` });
+      showToast({ message: (language === "id" ? "Pekerjaan" : "Work item") + " \"" + task.title + "\" " + text.completed });
     }
   }
 

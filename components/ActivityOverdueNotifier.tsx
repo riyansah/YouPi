@@ -5,14 +5,14 @@ import { X } from "lucide-react";
 import { useAppFeedback } from "@/components/AppFeedback";
 import { tCategory } from "@/lib/i18n";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { formatDate, formatTimeRange, getOverdueActivities, nowIso } from "@/lib/utils";
+import { formatDate, formatTimeRange, getOverdueActivities } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import type { ActivityStatus } from "@/lib/types";
 
 const overdueToastKey = "overdue-activities";
 
 export function ActivityOverdueNotifier() {
-  const { activities, setActivities, settings } = useDashboardStore();
+  const { activities, updateActivity, settings } = useDashboardStore();
   const { dismissToast, showToast } = useAppFeedback();
   const language = settings.language;
   const now = useNow(30000);
@@ -34,10 +34,9 @@ export function ActivityOverdueNotifier() {
 
   const updateActivityStatus = useCallback(
     (id: string, status: ActivityStatus) => {
-      const timestamp = nowIso();
-      setActivities((current) => current.map((activity) => (activity.id === id ? { ...activity, status, updatedAt: timestamp } : activity)));
+      void updateActivity(id, { status });
     },
-    [setActivities]
+    [updateActivity]
   );
 
   useEffect(() => {

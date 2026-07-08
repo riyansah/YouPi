@@ -10,7 +10,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { findLinkedItemTitle, normalizeNoteTags, translateNoteValidationErrors } from "@/lib/notes";
 import type { Note, NoteLinkedType } from "@/lib/types";
-import { nowIso } from "@/lib/utils";
 import { validateNoteForm } from "@/lib/validation";
 
 function toForm(note: Note): NoteEditorState {
@@ -29,7 +28,7 @@ export default function NoteDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { confirm, showToast } = useAppFeedback();
-  const { notes, setNotes, tasks, activities, routines, settings } = useDashboardStore();
+  const { notes, updateNote, deleteNote, tasks, activities, routines, settings } = useDashboardStore();
   const language = settings.language;
   const note = useMemo(() => notes.find((item) => item.id === params.id) || null, [notes, params.id]);
   const [form, setForm] = useState<NoteEditorState>(() => note ? toForm(note) : { title: "", content: "", category: "personal", linkedType: null, linkedId: "", tagsText: "", isPinned: false });
@@ -78,7 +77,7 @@ export default function NoteDetailPage() {
     });
   }
 
-  function handleSave() {
+  async function handleSave() {
     const payload = {
       title: form.title,
       content: form.content,
@@ -101,9 +100,13 @@ export default function NoteDetailPage() {
       return;
     }
 
-    setNotes((current) => current.map((item) => item.id === currentNote.id ? { ...item, ...payload, updatedAt: nowIso() } : item));
-    setErrors([]);
-    showToast({ message: language === "id" ? "Note berhasil diperbarui." : "Note updated successfully." });
+    try {
+      await updateNote(currentNote.id, payload);
+      setErrors([]);
+      showToast({ message: language === "id" ? "Note berhasil diperbarui." : "Note updated successfully." });
+    } catch (error) {
+      setErrors([error instanceof Error ? error.message : "Failed to save note."]);
+    }
   }
 
   async function handleDelete() {
@@ -111,7 +114,7 @@ export default function NoteDetailPage() {
     if (!confirmed) {
       return;
     }
-    setNotes((current) => current.filter((item) => item.id !== currentNote.id));
+    await deleteNote(currentNote.id);
     showToast({ message: language === "id" ? "Note berhasil dihapus." : "Note deleted.", tone: "warning" });
     router.push("/notes");
   }

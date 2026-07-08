@@ -14,10 +14,10 @@ import type { ActivityCategoryFilter } from "@/lib/activity-filters";
 import { tActivityFilter, tActivityStatus, tCategory } from "@/lib/i18n";
 import { getFieldClassName, getFieldMessageClassName } from "@/lib/field-styles";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { getLinkedNotes, relinkNotesForTarget, unlinkNotesForTarget } from "@/lib/notes";
+import { getLinkedNotes } from "@/lib/notes";
 import type { Activity, ActivityCategory, ActivityStatus } from "@/lib/types";
 import { activityCategories, activityFormStatuses } from "@/lib/types";
-import { getEffectiveActivityStatus, makeId, normalizeActivityStatusForTime, nowIso, paginateItems, restoreItemAtIndex, todayDate } from "@/lib/utils";
+import { getEffectiveActivityStatus, normalizeActivityStatusForTime, paginateItems, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import { validateActivityForm } from "@/lib/validation";
 
@@ -57,7 +57,7 @@ function translateErrors(errors: string[], language: "en" | "id") {
 }
 
 function ActivitiesPageContent() {
-  const { activities, setActivities, notes, setNotes, settings } = useDashboardStore();
+  const { activities, createActivity, updateActivity, deleteActivity, notes, updateNote, settings } = useDashboardStore();
   const language = settings.language;
   const timeZone = settings.timeZone;
   const { confirm, showToast } = useAppFeedback();
@@ -169,7 +169,7 @@ function ActivitiesPageContent() {
     router.replace("/activities", { scroll: false });
   }, [activities, categoryFilter, composeQuery, currentPage, dateFilter, editingId, now, router, selectedActivityId, timeZone]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedForm = normalizeActivityForm(form, timeZone);
     const errors = validateActivityForm(normalizedForm);
@@ -179,16 +179,18 @@ function ActivitiesPageContent() {
     }
 
     setFormErrors([]);
-    const timestamp = nowIso();
-    if (editingId) {
-      setActivities((current) => current.map((activity) => activity.id === editingId ? { ...activity, ...normalizedForm, updatedAt: timestamp } : activity));
-    } else {
-      const activity: Activity = { id: makeId("activity"), ...normalizedForm, createdAt: timestamp, updatedAt: timestamp };
-      setActivities((current) => [activity, ...current]);
-      showToast({ message: `${text.added} "${activity.title}" ${text.addedTail}` });
-    }
+    try {
+      if (editingId) {
+        await updateActivity(editingId, normalizedForm);
+      } else {
+        const activity = await createActivity(normalizedForm);
+        showToast({ message: text.added + " \"" + activity.title + "\" " + text.addedTail });
+      }
 
-    resetForm();
+      resetForm();
+    } catch (error) {
+      setFormErrors([error instanceof Error ? error.message : "Failed to save activity."]);
+    }
   }
 
   function handleEdit(activity: Activity) {
@@ -201,13 +203,11 @@ function ActivitiesPageContent() {
     const confirmed = await confirm({ title: text.confirmTitle, description: text.confirmDesc(activity?.title || (language === "id" ? "ini" : "this item")), confirmLabel: text.deleteLabel, tone: "danger" });
     if (!confirmed) return;
 
-    const deletedIndex = activities.findIndex((item) => item.id === id);
     const affectedNoteIds = notes.filter((note) => note.linkedType === "activity" && note.linkedId === id).map((note) => note.id);
-    setActivities((current) => current.filter((item) => item.id !== id));
-    setNotes((current) => unlinkNotesForTarget(current, "activity", id, nowIso()));
+    await deleteActivity(id);
     if (editingId === id) resetForm();
     if (activity) {
-      showToast({ message: `${text.added} "${activity.title}" ${text.deletedTail}`, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { setActivities((current) => restoreItemAtIndex(current, activity, deletedIndex)); setNotes((current) => relinkNotesForTarget(current, affectedNoteIds, "activity", id, nowIso())); } });
+      showToast({ message: text.added + " \"" + activity.title + "\" " + text.deletedTail, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { void createActivity(activity).then(() => Promise.all(affectedNoteIds.map((noteId) => updateNote(noteId, { linkedType: "activity", linkedId: id })))); } });
     } else {
       showToast({ message: text.deletedOk });
     }
@@ -217,9 +217,10 @@ function ActivitiesPageContent() {
     const activity = activities.find((item) => item.id === id);
     const nextStatus = activity ? normalizeActivityStatusForTime(status, activity.date, activity.startTime, now ?? Date.now(), timeZone) : status;
     const justCompleted = activity && getEffectiveActivityStatus(activity, now ?? Date.now(), timeZone) !== "Selesai" && nextStatus === "Selesai";
-    const timestamp = nowIso();
-    setActivities((current) => current.map((item) => item.id === id ? { ...item, status: normalizeActivityStatusForTime(status, item.date, item.startTime, now ?? Date.now(), timeZone), updatedAt: timestamp } : item));
-    if (justCompleted && activity) showToast({ message: `${text.added} "${activity.title}" ${text.completedTail}` });
+    if (activity) {
+      void updateActivity(id, { status: nextStatus });
+    }
+    if (justCompleted && activity) showToast({ message: text.added + " \"" + activity.title + "\" " + text.completedTail });
   }
 
   return (

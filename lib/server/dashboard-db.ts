@@ -43,6 +43,10 @@ const tableNames = {
   routines: "routines"
 } as const;
 
+type ResourceTable = keyof typeof tableNames;
+type ResourceItem = Task | Activity | Routine;
+type LinkedResourceType = Exclude<NoteLinkedType, null>;
+
 let database: Database | null = null;
 
 function getDatabasePath() {
@@ -229,17 +233,209 @@ export function getDatabase() {
   return database;
 }
 
-function readRows<T>(table: keyof typeof tableNames): T[] {
+function readRows<T>(table: ResourceTable): T[] {
   const rows = getDatabase().prepare(`SELECT data FROM ${tableNames[table]} ORDER BY position ASC`).all();
   return rows.map((row) => JSON.parse(String(row.data)) as T);
 }
 
-function replaceRows<T extends { id: string }>(table: keyof typeof tableNames, rows: T[]) {
+function readRow<T>(table: ResourceTable, id: string): T | null {
+  const row = getDatabase().prepare(`SELECT data FROM ${tableNames[table]} WHERE id = ?`).get(id);
+  return row ? (JSON.parse(String(row.data)) as T) : null;
+}
+
+function replaceRows<T extends { id: string }>(table: ResourceTable, rows: T[]) {
   const db = getDatabase();
   const now = getCurrentTimestampInTimeZone();
   db.prepare(`DELETE FROM ${tableNames[table]}`).run();
   const insert = db.prepare(`INSERT INTO ${tableNames[table]} (id, data, position, updated_at) VALUES (?, ?, ?, ?)`);
   rows.forEach((row, index) => insert.run(row.id, JSON.stringify(row), index, now));
+}
+
+function appendDashboardHistory(before: DashboardData) {
+  const after = getDashboardData(false);
+  appendHistoryEvents(buildDashboardHistoryEvents(before, after, { existingMissedKeys: getExistingMissedKeys() }));
+}
+
+function writeResourceRows(table: ResourceTable, rows: ResourceItem[]) {
+  if (table === "tasks") {
+    replaceRows("tasks", rows as Task[]);
+    return;
+  }
+
+  if (table === "activities") {
+    replaceRows("activities", rows as Activity[]);
+    return;
+  }
+
+  replaceRows("routines", rows as Routine[]);
+}
+
+function resourceRows(table: ResourceTable, data: DashboardData): ResourceItem[] {
+  if (table === "tasks") {
+    return data.tasks;
+  }
+
+  if (table === "activities") {
+    return data.activities;
+  }
+
+  return data.routines;
+}
+
+function linkedTypeForTable(table: ResourceTable): LinkedResourceType {
+  if (table === "tasks") {
+    return "work";
+  }
+
+  if (table === "activities") {
+    return "activity";
+  }
+
+  return "routine";
+}
+
+function unlinkNotesForTargetRows(notes: Note[], linkedType: LinkedResourceType, linkedId: string) {
+  let changed = false;
+  const updatedAt = getCurrentTimestampInTimeZone();
+  const next = notes.map((note) => {
+    if (note.linkedType !== linkedType || note.linkedId !== linkedId) {
+      return note;
+    }
+
+    changed = true;
+    return {
+      ...note,
+      linkedType: null,
+      linkedId: null,
+      updatedAt
+    } satisfies Note;
+  });
+
+  return changed ? next : notes;
+}
+
+function createResource<T extends ResourceItem>(table: ResourceTable, item: T) {
+  const db = getDatabase();
+  const before = getDashboardData(false);
+  const rows = resourceRows(table, before).filter((current) => current.id !== item.id);
+
+  db.exec("BEGIN");
+  try {
+    writeResourceRows(table, [item, ...rows]);
+    appendDashboardHistory(before);
+    db.exec("COMMIT");
+    return item;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function updateResource<T extends ResourceItem>(table: ResourceTable, id: string, patch: Partial<T>) {
+  const db = getDatabase();
+  const before = getDashboardData(false);
+  const rows = resourceRows(table, before) as T[];
+  const current = rows.find((item) => item.id === id);
+
+  if (!current) {
+    return null;
+  }
+
+  const nextItem = { ...current, ...patch, id: current.id } as T;
+
+  db.exec("BEGIN");
+  try {
+    writeResourceRows(table, rows.map((item) => (item.id === id ? nextItem : item)));
+    appendDashboardHistory(before);
+    db.exec("COMMIT");
+    return nextItem;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function deleteResource<T extends ResourceItem>(table: ResourceTable, id: string) {
+  const db = getDatabase();
+  const before = getDashboardData(false);
+  const rows = resourceRows(table, before) as T[];
+  const current = rows.find((item) => item.id === id);
+
+  if (!current) {
+    return null;
+  }
+
+  db.exec("BEGIN");
+  try {
+    writeResourceRows(table, rows.filter((item) => item.id !== id));
+    replaceNotes(unlinkNotesForTargetRows(before.notes, linkedTypeForTable(table), id));
+    appendDashboardHistory(before);
+    db.exec("COMMIT");
+    return current;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export function getTasks(): Task[] {
+  return readRows<Task>("tasks");
+}
+
+export function getTaskById(id: string) {
+  return readRow<Task>("tasks", id);
+}
+
+export function createTask(task: Task) {
+  return createResource("tasks", task);
+}
+
+export function updateTask(id: string, patch: Partial<Task>) {
+  return updateResource<Task>("tasks", id, patch);
+}
+
+export function deleteTask(id: string) {
+  return deleteResource<Task>("tasks", id);
+}
+
+export function getActivities(): Activity[] {
+  return readRows<Activity>("activities");
+}
+
+export function getActivityById(id: string) {
+  return readRow<Activity>("activities", id);
+}
+
+export function createActivity(activity: Activity) {
+  return createResource("activities", activity);
+}
+
+export function updateActivity(id: string, patch: Partial<Activity>) {
+  return updateResource<Activity>("activities", id, patch);
+}
+
+export function deleteActivity(id: string) {
+  return deleteResource<Activity>("activities", id);
+}
+
+export function getRoutines(): Routine[] {
+  return readRows<Routine>("routines");
+}
+
+export function getRoutineById(id: string) {
+  return readRow<Routine>("routines", id);
+}
+
+export function createRoutine(routine: Routine) {
+  return createResource("routines", routine);
+}
+
+export function updateRoutine(id: string, patch: Partial<Routine>) {
+  return updateResource<Routine>("routines", id, patch);
+}
+
+export function deleteRoutine(id: string) {
+  return deleteResource<Routine>("routines", id);
 }
 
 export function getNotes(): Note[] {
@@ -415,6 +611,15 @@ export function unlinkNotesByTarget(linkedType: Exclude<NoteLinkedType, null>, l
   }
 
   return next.filter((note) => note.linkedType !== linkedType || note.linkedId !== linkedId).length;
+}
+
+export function getSettings() {
+  return readSettings();
+}
+
+export function updateSettings(settings: DashboardSettings) {
+  updateDashboardData({ settings });
+  return getSettings();
 }
 
 function readSettings() {

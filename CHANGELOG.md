@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.51 - 2026-07-08
+
+- Added session-authenticated REST CRUD APIs for Work, Activities, Routines, Notes, and Settings, plus read-only Dashboard, Schedule, Reports, and History endpoints.
+- Moved the app data provider and Settings backup/reset flows off the old batch `/api/dashboard-data` route and removed that public route.
+- Added Hermes-facing API usage docs and an OpenAPI schema for resource, history, schedule, report, backup, and reset operations.
+
 ## 0.7.50 - 2026-07-08
 
 - Rebuilt the changelog so it lists every recorded project version from the initial repository history through the current release.

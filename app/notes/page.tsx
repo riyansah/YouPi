@@ -12,7 +12,6 @@ import { useDashboardStore } from "@/lib/dashboard-store";
 import { findLinkedItemTitle, getLinkedItemHref, getNoteCategoryLabel, matchesNoteFilter, normalizeNoteTags, noteCategories, sortNotes, translateNoteValidationErrors, type NoteFilterValue } from "@/lib/notes";
 import { getFieldClassName, getFieldShellClassName } from "@/lib/field-styles";
 import type { Note, NoteCategory, NoteLinkedType } from "@/lib/types";
-import { makeId, nowIso } from "@/lib/utils";
 import { validateNoteForm } from "@/lib/validation";
 
 function emptyForm(): NoteEditorState {
@@ -40,7 +39,7 @@ function noteToForm(note: Note): NoteEditorState {
 }
 
 function NotesPageContent() {
-  const { notes, setNotes, tasks, activities, routines, settings } = useDashboardStore();
+  const { notes, createNote, updateNote, deleteNote, tasks, activities, routines, settings } = useDashboardStore();
   const { confirm, showToast } = useAppFeedback();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -170,7 +169,7 @@ function NotesPageContent() {
     });
   }
 
-  function saveNote() {
+  async function saveNote() {
     const payload = {
       title: form.title,
       content: form.content,
@@ -194,28 +193,20 @@ function NotesPageContent() {
       return;
     }
 
-    const timestamp = nowIso();
+    try {
+      if (editingId) {
+        await updateNote(editingId, payload);
+        showToast({ message: language === "id" ? "Note berhasil diperbarui." : "Note updated successfully." });
+      } else {
+        await createNote(payload);
+        showToast({ message: language === "id" ? "Note berhasil ditambahkan." : "Note added successfully." });
+      }
 
-    if (editingId) {
-      setNotes((current) => sortNotes(current.map((note) => note.id === editingId ? {
-        ...note,
-        ...payload,
-        updatedAt: timestamp
-      } : note)));
-      showToast({ message: language === "id" ? "Note berhasil diperbarui." : "Note updated successfully." });
-    } else {
-      const note: Note = {
-        id: makeId("note"),
-        ...payload,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      };
-      setNotes((current) => sortNotes([note, ...current]));
-      showToast({ message: language === "id" ? "Note berhasil ditambahkan." : "Note added successfully." });
+      setDrawerOpen(false);
+      resetEditor();
+    } catch (error) {
+      setFormErrors([error instanceof Error ? error.message : "Failed to save note."]);
     }
-
-    setDrawerOpen(false);
-    resetEditor();
   }
 
   async function handleDelete(id: string) {
@@ -231,7 +222,7 @@ function NotesPageContent() {
       return;
     }
 
-    setNotes((current) => current.filter((item) => item.id !== id));
+    await deleteNote(id);
     if (editingId === id) {
       setDrawerOpen(false);
       resetEditor();

@@ -6,8 +6,7 @@ import { Download, KeyRound, RotateCcw, Save, Upload } from "lucide-react";
 import { useAppFeedback } from "@/components/AppFeedback";
 import { PageHeader } from "@/components/PageHeader";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { defaultSettings } from "@/lib/data";
-import { createDashboardBackup, parseDashboardBackup } from "@/lib/storage";
+import { parseDashboardBackup, type DashboardBackup } from "@/lib/storage";
 import { tCategory, tTheme } from "@/lib/i18n";
 import { getFieldClassName } from "@/lib/field-styles";
 import type { ActivityCategory, AppLanguage, ThemePreference } from "@/lib/types";
@@ -18,7 +17,7 @@ const themes: ThemePreference[] = ["Terang", "Gelap", "Sistem"];
 const languages: AppLanguage[] = ["en", "id"];
 
 export default function SettingsPage() {
-  const { tasks, activities, routines, notes, history, settings, setSettings, replaceDashboardData } = useDashboardStore();
+  const { settings, setSettings, replaceDashboardData, resetDashboardData } = useDashboardStore();
   const { confirm, showToast } = useAppFeedback();
   const [saved, setSaved] = useState(false);
   const [dataMessage, setDataMessage] = useState<string | null>(null);
@@ -40,17 +39,25 @@ export default function SettingsPage() {
     });
   }
 
-  function handleExport() {
-    const backup = createDashboardBackup(tasks, activities, routines, notes, settings, history);
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `youpi-${getDateKeyFromTimestamp(backup.exportedAt)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setDataMessage(null);
-    showToast({ message: language === "id" ? "Backup JSON berhasil dibuat." : "JSON backup created successfully." });
+  async function handleExport() {
+    try {
+      const response = await fetch("/api/backup");
+      if (!response.ok) {
+        throw new Error("Export failed.");
+      }
+      const backup = (await response.json()) as DashboardBackup;
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `youpi-${getDateKeyFromTimestamp(backup.exportedAt)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setDataMessage(null);
+      showToast({ message: language === "id" ? "Backup JSON berhasil dibuat." : "JSON backup created successfully." });
+    } catch {
+      setDataMessage(language === "id" ? "Backup gagal dibuat." : "Backup export failed.");
+    }
   }
 
   async function handleImport(event: ChangeEvent<HTMLInputElement>) {
@@ -113,7 +120,7 @@ export default function SettingsPage() {
     }
 
     try {
-      await replaceDashboardData({ tasks: [], activities: [], routines: [], notes: [], history: [], settings: defaultSettings });
+      await resetDashboardData();
       setDataMessage(null);
       showToast({ message: language === "id" ? "Semua data berhasil dikosongkan." : "All data was cleared successfully." });
     } catch {

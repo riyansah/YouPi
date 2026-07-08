@@ -11,10 +11,10 @@ import { TimePicker } from "@/components/TimePicker";
 import { getFieldClassName, getFieldMessageClassName } from "@/lib/field-styles";
 import { tPriority, tTaskStatus, tWeekday } from "@/lib/i18n";
 import { useDashboardStore } from "@/lib/dashboard-store";
-import { getLinkedNotes, relinkNotesForTarget, unlinkNotesForTarget } from "@/lib/notes";
+import { getLinkedNotes } from "@/lib/notes";
 import type { Routine, TaskPriority, Weekday } from "@/lib/types";
 import { taskPriorities, weekdays } from "@/lib/types";
-import { cn, formatRoutineDays, formatTimeRange, getEffectiveRoutineStatus, getWeekdayFromDate, makeId, nowIso, paginateItems, restoreItemAtIndex, sortRoutines, todayDate } from "@/lib/utils";
+import { cn, formatRoutineDays, formatTimeRange, getEffectiveRoutineStatus, getWeekdayFromDate, paginateItems, sortRoutines, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import { validateRoutineForm } from "@/lib/validation";
 
@@ -42,7 +42,7 @@ function translateErrors(errors: string[], language: "en" | "id") {
 }
 
 function RoutinesPageContent() {
-  const { routines, setRoutines, notes, setNotes, settings } = useDashboardStore();
+  const { routines, createRoutine, updateRoutine, deleteRoutine, notes, updateNote, settings } = useDashboardStore();
   const language = settings.language;
   const timeZone = settings.timeZone;
   const { confirm, showToast } = useAppFeedback();
@@ -136,7 +136,7 @@ function RoutinesPageContent() {
     setForm((current) => ({ ...current, days: current.days.includes(day) ? current.days.filter((item) => item !== day) : [...current.days, day] }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const errors = validateRoutineForm(form);
     if (errors.length) {
@@ -145,16 +145,18 @@ function RoutinesPageContent() {
     }
 
     setFormErrors([]);
-    const timestamp = nowIso();
-    if (editingId) {
-      setRoutines((current) => current.map((routine) => routine.id === editingId ? { ...routine, ...form, updatedAt: timestamp } : routine));
-    } else {
-      const routine: Routine = { id: makeId("routine"), ...form, createdAt: timestamp, updatedAt: timestamp };
-      setRoutines((current) => [routine, ...current]);
-      showToast({ message: `${text.added} "${routine.title}" ${text.addedTail}` });
-    }
+    try {
+      if (editingId) {
+        await updateRoutine(editingId, form);
+      } else {
+        const routine = await createRoutine(form);
+        showToast({ message: text.added + " \"" + routine.title + "\" " + text.addedTail });
+      }
 
-    resetForm();
+      resetForm();
+    } catch (error) {
+      setFormErrors([error instanceof Error ? error.message : "Failed to save routine."]);
+    }
   }
 
   function handleEdit(routine: Routine) {
@@ -168,13 +170,11 @@ function RoutinesPageContent() {
     const confirmed = await confirm({ title: text.deleteTitle, description: text.deleteDesc(routine?.title || (language === "id" ? "ini" : "this item")), confirmLabel: text.deleteLabel, tone: "danger" });
     if (!confirmed) return;
 
-    const deletedIndex = routines.findIndex((item) => item.id === id);
     const affectedNoteIds = notes.filter((note) => note.linkedType === "routine" && note.linkedId === id).map((note) => note.id);
-    setRoutines((current) => current.filter((item) => item.id !== id));
-    setNotes((current) => unlinkNotesForTarget(current, "routine", id, nowIso()));
+    await deleteRoutine(id);
     if (editingId === id) resetForm();
     if (routine) {
-      showToast({ message: `${text.added} "${routine.title}" ${text.deletedTail}`, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { setRoutines((current) => restoreItemAtIndex(current, routine, deletedIndex)); setNotes((current) => relinkNotesForTarget(current, affectedNoteIds, "routine", id, nowIso())); } });
+      showToast({ message: text.added + " \"" + routine.title + "\" " + text.deletedTail, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { void createRoutine(routine).then(() => Promise.all(affectedNoteIds.map((noteId) => updateNote(noteId, { linkedType: "routine", linkedId: id })))); } });
     } else {
       showToast({ message: text.deletedOk });
     }
