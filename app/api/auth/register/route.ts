@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeAuthUsername, validateAuthPassword, validateAuthUsername } from "@/lib/auth-validation";
 import { checkRateLimit, getClientIp, hasRegisteredUser, registerUser, resetRateLimit } from "@/lib/server/auth";
+import { logWithContext, parseJsonBody, setRequestActor, setRequestMetadata, withRequestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
@@ -14,37 +15,99 @@ function isRegisterBody(value: unknown): value is { username: string; password: 
   );
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withRequestContext(async function POST(request: NextRequest) {
   if (hasRegisteredUser()) {
-    return NextResponse.json({ error: "Akun sudah dibuat. Silakan login." }, { status: 409 });
+    logWithContext({
+      level: "warn",
+      category: "SECURITY",
+      action: "auth.register_failed",
+      activity: "Register user gagal",
+      entityType: "user",
+      status: "failed",
+      description: "Register attempted after account already exists."
+    });
+    return NextResponse.json({ code: "account_exists", error: "Akun sudah dibuat. Silakan login." }, { status: 409 });
   }
 
   const clientIp = getClientIp(request);
+  setRequestMetadata({ auth_client_ip: clientIp });
   const rateLimit = checkRateLimit("register", clientIp);
 
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: "Terlalu banyak percobaan register. Coba lagi beberapa menit lagi." }, { status: 429 });
+    logWithContext({
+      level: "warn",
+      category: "SECURITY",
+      action: "auth.register_failed",
+      activity: "Register user gagal",
+      entityType: "user",
+      status: "failed",
+      description: "Register blocked by rate limit.",
+      metadata: { reset_at: rateLimit.resetAt }
+    });
+    return NextResponse.json({ code: "rate_limited", error: "Terlalu banyak percobaan register. Coba lagi beberapa menit lagi." }, { status: 429 });
   }
 
-  const body = (await request.json().catch(() => null)) as unknown;
+  const body = (await parseJsonBody<{ username: string; password: string }>(request)) as unknown;
 
   if (!isRegisterBody(body)) {
-    return NextResponse.json({ error: "Username dan password wajib diisi." }, { status: 400 });
+    logWithContext({
+      level: "warn",
+      category: "AUTH",
+      action: "auth.register_failed",
+      activity: "Register user gagal",
+      entityType: "user",
+      status: "failed",
+      description: "Register payload missing username or password."
+    });
+    return NextResponse.json({ code: "missing_credentials", error: "Username dan password wajib diisi." }, { status: 400 });
   }
 
+  const normalizedUsername = normalizeAuthUsername(body.username);
   const validationError = [...validateAuthUsername(body.username), ...validateAuthPassword(body.password)][0];
 
   if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 });
+    logWithContext({
+      level: "warn",
+      category: "AUTH",
+      action: "auth.register_failed",
+      activity: "Register user gagal",
+      actor: { name: normalizedUsername, type: "user" },
+      entityType: "user",
+      status: "failed",
+      description: validationError
+    });
+    return NextResponse.json({ code: "invalid_input", error: validationError }, { status: 400 });
   }
 
-  const result = registerUser(normalizeAuthUsername(body.username), body.password);
+  const result = registerUser(normalizedUsername, body.password);
 
   if (!result.ok) {
-    return NextResponse.json({ error: "Akun sudah dibuat. Silakan login." }, { status: 409 });
+    logWithContext({
+      level: "warn",
+      category: "SECURITY",
+      action: "auth.register_failed",
+      activity: "Register user gagal",
+      actor: { name: normalizedUsername, type: "user" },
+      entityType: "user",
+      status: "failed",
+      description: "Register rejected because account already exists."
+    });
+    return NextResponse.json({ code: "account_exists", error: "Akun sudah dibuat. Silakan login." }, { status: 409 });
   }
 
   resetRateLimit("register", clientIp);
+  setRequestActor({ id: result.userId, name: result.username, type: "user" });
 
-  return NextResponse.json({ ok: true, message: "Akun berhasil dibuat. Silakan login." });
-}
+  logWithContext({
+    level: "info",
+    category: "AUTH",
+    action: "auth.register_success",
+    activity: "Register user",
+    entityType: "user",
+    entityId: result.userId,
+    status: "success",
+    description: `${result.username} berhasil didaftarkan.`
+  });
+
+  return NextResponse.json({ ok: true, code: "register_success", message: "Akun berhasil dibuat. Silakan login." });
+});

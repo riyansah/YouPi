@@ -3,8 +3,8 @@ import "./globals.css";
 import { Layout } from "@/components/Layout";
 
 export const metadata: Metadata = {
-  title: "Personal Activity Dashboard",
-  description: "Dashboard pribadi untuk pekerjaan, aktivitas, progress, grafik, dan laporan."
+  title: "YouPi",
+  description: "You Plan It. Personal Activity Management Dashboard."
 };
 
 export default function RootLayout({

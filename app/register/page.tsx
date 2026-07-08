@@ -5,6 +5,7 @@ import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, User, UserPlus } from "lucide-react";
 import { getPasswordStrength, validateAuthPassword, validateAuthUsername } from "@/lib/auth-validation";
+import { BRAND_NAME, BRAND_TAGLINE, tAuthErrorCode, tPasswordStrength, useStoredLanguage } from "@/lib/i18n";
 import {
   CapsLockWarning,
   getValidationDisplayMode,
@@ -19,7 +20,7 @@ function getCapsLockState(event: KeyboardEvent<HTMLInputElement>) {
   return event.getModifierState("CapsLock");
 }
 
-function StrengthMeter({ password }: { password: string }) {
+function StrengthMeter({ password, language }: { password: string; language: "en" | "id" }) {
   if (!password) {
     return null;
   }
@@ -33,13 +34,16 @@ function StrengthMeter({ password }: { password: string }) {
       <div className="h-2 overflow-hidden rounded bg-slate-100">
         <div className={cn("h-full rounded", width, color)} />
       </div>
-      <p className="text-xs font-medium text-slate-600">Kekuatan password: {strength}</p>
+      <p className="text-xs font-medium text-slate-600">
+        {language === "id" ? "Kekuatan password:" : "Password strength:"} {tPasswordStrength(strength, language)}
+      </p>
     </div>
   );
 }
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [language] = useStoredLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -62,19 +66,55 @@ export default function RegisterPage() {
   const passwordErrors = useMemo(() => validateAuthPassword(password), [password]);
   const confirmPasswordErrors = useMemo(() => {
     if (!confirmPassword) {
-      return ["Konfirmasi password wajib diisi."];
+      return [language === "id" ? "Konfirmasi password wajib diisi." : "Password confirmation is required."];
     }
 
     if (password !== confirmPassword) {
-      return ["Konfirmasi password tidak sama."];
+      return [language === "id" ? "Konfirmasi password tidak sama." : "Password confirmation does not match."];
     }
 
     return [];
-  }, [confirmPassword, password]);
+  }, [confirmPassword, language, password]);
   const usernameValid = usernameErrors.length === 0;
   const passwordValid = passwordErrors.length === 0;
   const confirmPasswordValid = confirmPasswordErrors.length === 0;
   const formValid = usernameValid && passwordValid && confirmPasswordValid;
+
+  const text = {
+    eyebrow: language === "id" ? "Setup Awal" : "Initial Setup",
+    title: language === "id" ? "Buat Akun" : "Create Account",
+    description: language === "id" ? "Akun pertama akan disimpan aman di database lokal aplikasi." : "The first account will be stored securely in the app's local database.",
+    redirecting: language === "id" ? `Mengarahkan ke halaman login dalam ${countdown} detik.` : `Redirecting to the sign-in page in ${countdown} seconds.`,
+    invalidForm: language === "id" ? "Periksa kembali username dan password." : "Please review your username and password.",
+    registerFailed: language === "id" ? "Register gagal." : "Registration failed.",
+    usernameMin: language === "id" ? "Minimal 3 karakter." : "Minimum 3 characters.",
+    usernameMax: language === "id" ? "Maksimal 20 karakter." : "Maximum 20 characters.",
+    usernameFormat: language === "id" ? "Hanya huruf kecil dan angka." : "Lowercase letters and numbers only.",
+    passwordMin: language === "id" ? "Minimal 8 karakter." : "Minimum 8 characters.",
+    passwordMax: language === "id" ? "Maksimal 64 karakter." : "Maximum 64 characters.",
+    passwordUpper: language === "id" ? "Minimal 1 huruf besar." : "At least 1 uppercase letter.",
+    passwordNumber: language === "id" ? "Minimal 1 angka." : "At least 1 number.",
+    passwordSpace: language === "id" ? "Tidak boleh mengandung spasi." : "Must not contain spaces.",
+    confirmRequired: language === "id" ? "Konfirmasi password wajib diisi." : "Password confirmation is required.",
+    confirmMatch: language === "id" ? "Konfirmasi password harus sama." : "Password confirmation must match.",
+    usernameHelper: language === "id" ? "Gunakan 3-20 karakter huruf kecil dan angka." : "Use 3-20 lowercase letters and numbers.",
+    usernameSummary: language === "id" ? "Format username valid." : "Username format is valid.",
+    passwordHelper: language === "id" ? "Gunakan 8-64 karakter, 1 huruf besar, 1 angka, tanpa spasi." : "Use 8-64 characters, 1 uppercase letter, 1 number, and no spaces.",
+    passwordSummary: language === "id" ? "Password memenuhi semua syarat." : "Password meets all requirements.",
+    confirmHelper: language === "id" ? "Ulangi password yang sama." : "Repeat the same password.",
+    confirmSummary: language === "id" ? "Konfirmasi password sudah cocok." : "Password confirmation matches.",
+    usernamePlaceholder: language === "id" ? "contoh: user123" : "example: user123",
+    passwordPlaceholder: language === "id" ? "Buat password" : "Create a password",
+    confirmPlaceholder: language === "id" ? "Ulangi password" : "Repeat password",
+    showPassword: language === "id" ? "Tampilkan password" : "Show password",
+    hidePassword: language === "id" ? "Sembunyikan password" : "Hide password",
+    showConfirm: language === "id" ? "Tampilkan konfirmasi password" : "Show password confirmation",
+    hideConfirm: language === "id" ? "Sembunyikan konfirmasi password" : "Hide password confirmation",
+    creating: language === "id" ? "Membuat akun..." : "Creating account...",
+    register: language === "id" ? "Register" : "Register",
+    haveAccount: language === "id" ? "Sudah punya akun?" : "Already have an account?",
+    signIn: language === "id" ? "Masuk" : "Sign In"
+  };
 
   useEffect(() => {
     if (!success) {
@@ -99,44 +139,25 @@ export default function RegisterPage() {
   }, [router, success]);
 
   const usernameChecks: ValidationItem[] = [
-    { id: "username-min", label: "Minimal 3 karakter.", valid: username.trim().length >= 3 },
-    { id: "username-max", label: "Maksimal 20 karakter.", valid: username.trim().length <= 20 },
-    {
-      id: "username-format",
-      label: "Hanya huruf kecil dan angka.",
-      valid: !username.trim() || /^[a-z0-9]+$/.test(username.trim())
-    }
+    { id: "username-min", label: text.usernameMin, valid: username.trim().length >= 3 },
+    { id: "username-max", label: text.usernameMax, valid: username.trim().length <= 20 },
+    { id: "username-format", label: text.usernameFormat, valid: !username.trim() || /^[a-z0-9]+$/.test(username.trim()) }
   ];
   const passwordChecks: ValidationItem[] = [
-    { id: "password-min", label: "Minimal 8 karakter.", valid: password.length >= 8 },
-    { id: "password-max", label: "Maksimal 64 karakter.", valid: password.length <= 64 },
-    { id: "password-uppercase", label: "Minimal 1 huruf besar.", valid: /[A-Z]/.test(password) },
-    { id: "password-number", label: "Minimal 1 angka.", valid: /[0-9]/.test(password) },
-    { id: "password-space", label: "Tidak boleh mengandung spasi.", valid: !/\s/.test(password) }
+    { id: "password-min", label: text.passwordMin, valid: password.length >= 8 },
+    { id: "password-max", label: text.passwordMax, valid: password.length <= 64 },
+    { id: "password-uppercase", label: text.passwordUpper, valid: /[A-Z]/.test(password) },
+    { id: "password-number", label: text.passwordNumber, valid: /[0-9]/.test(password) },
+    { id: "password-space", label: text.passwordSpace, valid: !/\s/.test(password) }
   ];
   const confirmPasswordChecks: ValidationItem[] = [
-    { id: "confirm-required", label: "Konfirmasi password wajib diisi.", valid: Boolean(confirmPassword) },
-    { id: "confirm-match", label: "Konfirmasi password harus sama.", valid: Boolean(confirmPassword) && password === confirmPassword }
+    { id: "confirm-required", label: text.confirmRequired, valid: Boolean(confirmPassword) },
+    { id: "confirm-match", label: text.confirmMatch, valid: Boolean(confirmPassword) && password === confirmPassword }
   ];
 
-  const usernameMode = getValidationDisplayMode({
-    focused: usernameFocused,
-    touched: usernameTouched,
-    value: username,
-    valid: usernameValid
-  });
-  const passwordMode = getValidationDisplayMode({
-    focused: passwordFocused,
-    touched: passwordTouched,
-    value: password,
-    valid: passwordValid
-  });
-  const confirmPasswordMode = getValidationDisplayMode({
-    focused: confirmPasswordFocused,
-    touched: confirmPasswordTouched,
-    value: confirmPassword,
-    valid: confirmPasswordValid
-  });
+  const usernameMode = getValidationDisplayMode({ focused: usernameFocused, touched: usernameTouched, value: username, valid: usernameValid });
+  const passwordMode = getValidationDisplayMode({ focused: passwordFocused, touched: passwordTouched, value: password, valid: passwordValid });
+  const confirmPasswordMode = getValidationDisplayMode({ focused: confirmPasswordFocused, touched: confirmPasswordTouched, value: confirmPassword, valid: confirmPasswordValid });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,7 +168,7 @@ export default function RegisterPage() {
     setSuccess(null);
 
     if (!formValid) {
-      setError("Periksa kembali username dan password.");
+      setError(text.invalidForm);
       return;
     }
 
@@ -158,10 +179,10 @@ export default function RegisterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
     });
-    const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    const body = (await response.json().catch(() => null)) as { error?: string; message?: string; code?: string } | null;
 
     if (!response.ok) {
-      setError(body?.error || "Register gagal.");
+      setError(tAuthErrorCode(body?.code, language) || body?.error || text.registerFailed);
       setSubmitting(false);
 
       if (response.status === 409) {
@@ -172,7 +193,7 @@ export default function RegisterPage() {
       return;
     }
 
-    setSuccess(body?.message || "Akun berhasil dibuat. Silakan login.");
+    setSuccess(tAuthErrorCode(body?.code, language) || body?.message || (language === "id" ? "Akun berhasil dibuat. Silakan login." : "Account created successfully. Please sign in."));
     setSubmitting(false);
   }
 
@@ -180,151 +201,50 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 py-10">
       <form onSubmit={handleSubmit} className="w-full max-w-sm rounded border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <p className="text-sm font-semibold uppercase text-teal-700">Setup Awal</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">Buat Akun</h1>
-          <p className="mt-2 text-sm text-slate-500">Akun pertama akan disimpan aman di database lokal aplikasi.</p>
+          <p className="text-sm font-semibold uppercase text-teal-700">{text.eyebrow}</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-950">{BRAND_NAME} {BRAND_TAGLINE}</h1>
+          <p className="mt-2 text-sm text-slate-500">{text.description}</p>
         </div>
 
         {error ? <p className="mt-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
-        {success ? (
-          <p className="mt-5 rounded border border-teal-200 bg-teal-50 p-3 text-sm text-teal-700">
-            {success} Mengarahkan ke halaman login dalam {countdown} detik.
-          </p>
-        ) : null}
+        {success ? <p className="mt-5 rounded border border-teal-200 bg-teal-50 p-3 text-sm text-teal-700">{success} {text.redirecting}</p> : null}
 
         <div className="mt-5 space-y-4">
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">Username</span>
-            <InputShell icon={User}>
-              <input
-                value={username}
-                onChange={(event) => {
-                  setUsernameTouched(true);
-                  setUsername(event.target.value);
-                }}
-                onFocus={() => {
-                  setUsernameTouched(true);
-                  setUsernameFocused(true);
-                }}
-                onBlur={() => setUsernameFocused(false)}
-                autoComplete="username"
-                placeholder="contoh: user123"
-                className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
-                required
-                disabled={Boolean(success)}
-              />
+            <InputShell icon={User} filled={Boolean(username)} error={usernameTouched && !usernameValid} disabled={Boolean(success)}>
+              <input value={username} onChange={(event) => { setUsernameTouched(true); setUsername(event.target.value); }} onFocus={() => { setUsernameTouched(true); setUsernameFocused(true); }} onBlur={() => setUsernameFocused(false)} autoComplete="username" placeholder={text.usernamePlaceholder} className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none" required disabled={Boolean(success)} />
             </InputShell>
-            <ValidationFeedback
-              helperText="Gunakan 3-20 karakter huruf kecil dan angka."
-              summaryText="Format username valid."
-              mode={usernameMode}
-              items={usernameChecks}
-            />
+            <ValidationFeedback helperText={text.usernameHelper} summaryText={text.usernameSummary} mode={usernameMode} items={usernameChecks} />
           </label>
 
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700">Password</span>
-            <InputShell
-              icon={Lock}
-              action={
-                <PasswordToggle
-                  visible={showPassword}
-                  onClick={() => setShowPassword((current) => !current)}
-                  label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                />
-              }
-            >
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(event) => {
-                  setPasswordTouched(true);
-                  setPassword(event.target.value);
-                }}
-                onFocus={() => {
-                  setPasswordTouched(true);
-                  setPasswordFocused(true);
-                }}
-                onBlur={() => {
-                  setPasswordFocused(false);
-                  setPasswordCapsLockActive(false);
-                }}
-                onKeyDown={(event) => setPasswordCapsLockActive(getCapsLockState(event))}
-                onKeyUp={(event) => setPasswordCapsLockActive(getCapsLockState(event))}
-                autoComplete="new-password"
-                placeholder="Buat password"
-                className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
-                required
-                disabled={Boolean(success)}
-              />
+            <InputShell icon={Lock} action={<PasswordToggle visible={showPassword} onClick={() => setShowPassword((current) => !current)} label={showPassword ? text.hidePassword : text.showPassword} disabled={Boolean(success)} />} filled={Boolean(password)} error={passwordTouched && !passwordValid} disabled={Boolean(success)}>
+              <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => { setPasswordTouched(true); setPassword(event.target.value); }} onFocus={() => { setPasswordTouched(true); setPasswordFocused(true); }} onBlur={() => { setPasswordFocused(false); setPasswordCapsLockActive(false); }} onKeyDown={(event) => setPasswordCapsLockActive(getCapsLockState(event))} onKeyUp={(event) => setPasswordCapsLockActive(getCapsLockState(event))} autoComplete="new-password" placeholder={text.passwordPlaceholder} className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none" required disabled={Boolean(success)} />
             </InputShell>
             <CapsLockWarning active={passwordCapsLockActive} />
-            <StrengthMeter password={password} />
-            <ValidationFeedback
-              helperText="Gunakan 8-64 karakter, 1 huruf besar, 1 angka, tanpa spasi."
-              summaryText="Password memenuhi semua syarat."
-              mode={passwordMode}
-              items={passwordChecks}
-            />
+            <StrengthMeter password={password} language={language} />
+            <ValidationFeedback helperText={text.passwordHelper} summaryText={text.passwordSummary} mode={passwordMode} items={passwordChecks} />
           </label>
 
           <label className="space-y-1">
-            <span className="text-sm font-medium text-slate-700">Konfirmasi Password</span>
-            <InputShell
-              icon={Lock}
-              action={
-                <PasswordToggle
-                  visible={showConfirmPassword}
-                  onClick={() => setShowConfirmPassword((current) => !current)}
-                  label={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
-                />
-              }
-            >
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(event) => {
-                  setConfirmPasswordTouched(true);
-                  setConfirmPassword(event.target.value);
-                }}
-                onFocus={() => {
-                  setConfirmPasswordTouched(true);
-                  setConfirmPasswordFocused(true);
-                }}
-                onBlur={() => {
-                  setConfirmPasswordFocused(false);
-                  setConfirmPasswordCapsLockActive(false);
-                }}
-                onKeyDown={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))}
-                onKeyUp={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))}
-                autoComplete="new-password"
-                placeholder="Ulangi password"
-                className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none"
-                required
-                disabled={Boolean(success)}
-              />
+            <span className="text-sm font-medium text-slate-700">{language === "id" ? "Konfirmasi Password" : "Confirm Password"}</span>
+            <InputShell icon={Lock} action={<PasswordToggle visible={showConfirmPassword} onClick={() => setShowConfirmPassword((current) => !current)} label={showConfirmPassword ? text.hideConfirm : text.showConfirm} disabled={Boolean(success)} />} filled={Boolean(confirmPassword)} error={confirmPasswordTouched && !confirmPasswordValid} disabled={Boolean(success)}>
+              <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => { setConfirmPasswordTouched(true); setConfirmPassword(event.target.value); }} onFocus={() => { setConfirmPasswordTouched(true); setConfirmPasswordFocused(true); }} onBlur={() => { setConfirmPasswordFocused(false); setConfirmPasswordCapsLockActive(false); }} onKeyDown={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))} onKeyUp={(event) => setConfirmPasswordCapsLockActive(getCapsLockState(event))} autoComplete="new-password" placeholder={text.confirmPlaceholder} className="w-full bg-transparent py-2 pr-3 text-sm placeholder:text-slate-400 focus:outline-none" required disabled={Boolean(success)} />
             </InputShell>
             <CapsLockWarning active={confirmPasswordCapsLockActive} />
-            <ValidationFeedback
-              helperText="Ulangi password yang sama."
-              summaryText="Konfirmasi password sudah cocok."
-              mode={confirmPasswordMode}
-              items={confirmPasswordChecks}
-            />
+            <ValidationFeedback helperText={text.confirmHelper} summaryText={text.confirmSummary} mode={confirmPasswordMode} items={confirmPasswordChecks} />
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={submitting || !formValid || Boolean(success)}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
-        >
+        <button type="submit" disabled={submitting || !formValid || Boolean(success)} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70">
           <UserPlus className="h-4 w-4" />
-          {submitting ? "Membuat akun..." : "Register"}
+          {submitting ? text.creating : text.register}
         </button>
 
         <p className="mt-4 text-center text-sm text-slate-600">
-          Sudah punya akun? <Link href="/login" className="font-semibold text-teal-700 hover:text-teal-800">Masuk</Link>
+          {text.haveAccount} <Link href="/login" className="font-semibold text-teal-700 hover:text-teal-800">{text.signIn}</Link>
         </p>
       </form>
     </main>

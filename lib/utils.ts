@@ -1,6 +1,18 @@
-"use client";
+import {
+  APP_DEFAULT_TIME_ZONE,
+  addDaysToDateKey,
+  endOfMonthDateKey,
+  formatDateKeyInTimeZone,
+  getCurrentTimestampInTimeZone,
+  getDateKeyFromTimestamp,
+  getDateKeyInTimeZone,
+  getEndOfDayTimestampInTimeZone,
+  getTimeValueInTimeZone,
+  getWeekdayIndexFromDateKey,
+  startOfWeekDateKey,
+  zonedDateTimeToTimestamp
+} from "@/lib/time";
 
-import { useEffect, useState } from "react";
 import type {
   Activity,
   ActivityCategory,
@@ -8,13 +20,18 @@ import type {
   ActivitySummary,
   ReportPeriod,
   Routine,
+  ScheduleDisplayStatus,
+  ScheduleItem,
+  ScheduleSourceFilter,
+  ScheduleStatusFilter,
+  ScheduleViewMode,
   Task,
   TaskPriority,
   TaskStatus,
   TaskSummary,
   Weekday
 } from "@/lib/types";
-import { weekdays } from "@/lib/types";
+import { taskStatuses, weekdays } from "@/lib/types";
 
 export interface TodayAgendaItem {
   id: string;
@@ -32,28 +49,20 @@ export function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function todayDate() {
-  return new Date().toISOString().slice(0, 10);
+export function todayDate(timeZone = APP_DEFAULT_TIME_ZONE, reference = Date.now()) {
+  return getDateKeyInTimeZone(reference, timeZone);
 }
 
 export function nowIso() {
-  return new Date().toISOString();
+  return getCurrentTimestampInTimeZone();
+}
+
+export function dateKeyFromTimestamp(value: string | number | Date, timeZone = APP_DEFAULT_TIME_ZONE) {
+  return getDateKeyFromTimestamp(value, timeZone);
 }
 
 export function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), intervalMs);
-    return () => window.clearInterval(timer);
-  }, [intervalMs]);
-
-  return now;
 }
 
 export function paginateItems<T>(items: T[], page: number, pageSize: number) {
@@ -75,49 +84,55 @@ export function paginateItems<T>(items: T[], page: number, pageSize: number) {
   };
 }
 
-export function formatDate(value: string) {
+export function formatDate(value: string, language: "id" | "en" = "id", timeZone = APP_DEFAULT_TIME_ZONE) {
   if (!value) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(`${value}T00:00:00`));
+  return formatDateKeyInTimeZone(value, language === "id" ? "id-ID" : "en-US", timeZone);
 }
 
-export function formatDateWithWeekday(value: string) {
+export function formatDateWithWeekday(value: string, language: "id" | "en" = "id", timeZone = APP_DEFAULT_TIME_ZONE) {
   if (!value) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(`${value}T00:00:00`));
+  return formatDateKeyInTimeZone(value, language === "id" ? "id-ID" : "en-US", timeZone, true);
 }
 
 export function formatTimeRange(startTime: string, endTime: string) {
   return `${startTime} - ${endTime}`;
 }
 
-function toDateString(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function getDeadlineTimestamp(value: string, endTime?: string | null) {
+export function getDeadlineTimestamp(value: string, endTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE) {
   if (endTime) {
-    return new Date(`${value}T${endTime}:59.999`).getTime();
+    return zonedDateTimeToTimestamp(value, endTime, timeZone, true);
   }
 
-  return new Date(`${value}T23:59:59.999`).getTime();
+  return getEndOfDayTimestampInTimeZone(value, timeZone);
 }
+
+export function getTaskStartTimestamp(value: string, startTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE) {
+  return zonedDateTimeToTimestamp(value, startTime || "00:00", timeZone);
+}
+
+export function getActivityStartTimestamp(value: string, startTime: string, timeZone = APP_DEFAULT_TIME_ZONE) {
+  return zonedDateTimeToTimestamp(value, startTime, timeZone);
+}
+
+export function getActivityEndTimestamp(value: string, endTime: string, timeZone = APP_DEFAULT_TIME_ZONE) {
+  return zonedDateTimeToTimestamp(value, endTime, timeZone, true);
+}
+
+function resolveStatusTimestamp(reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return typeof reference === "string" ? getEndOfDayTimestampInTimeZone(reference, timeZone) : reference;
+}
+
+function referenceDate(reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return typeof reference === "string" ? reference : getDateKeyInTimeZone(reference, timeZone);
+}
+
+export type RoutineEffectiveStatus = "Akan Datang" | "Berjalan" | null;
 
 type CountdownTone = "green" | "amber" | "red";
 
@@ -126,6 +141,11 @@ export interface DeadlineCountdownState {
   displayLabel: string;
   isOverdue: boolean;
   tone: CountdownTone;
+}
+
+export interface TaskCountdownState extends DeadlineCountdownState {
+  mode: "upcoming" | "active";
+  label: string;
 }
 
 function getCountdownParts(diffMs: number) {
@@ -154,9 +174,7 @@ function formatOverdueCompact(days: number, hours: number, minutes: number) {
   return `Terlambat ${padCountdown(minutes)} Menit`;
 }
 
-export function getDeadlineCountdownTone(value: string, now = Date.now(), endTime?: string | null): CountdownTone {
-  const diff = getDeadlineTimestamp(value, endTime) - now;
-
+function getCountdownToneByDiff(diff: number): CountdownTone {
   if (diff < 86400000) {
     return "red";
   }
@@ -168,8 +186,8 @@ export function getDeadlineCountdownTone(value: string, now = Date.now(), endTim
   return "green";
 }
 
-export function getDeadlineCountdownState(value: string, now = Date.now(), endTime?: string | null): DeadlineCountdownState {
-  const diff = getDeadlineTimestamp(value, endTime) - now;
+function getTimestampCountdownState(timestamp: number, now = Date.now()): DeadlineCountdownState {
+  const diff = timestamp - now;
   const { days, hours, minutes, seconds } = getCountdownParts(diff);
   const detail = `${days} hari ${hours} jam ${minutes} menit ${seconds} detik`;
 
@@ -180,16 +198,166 @@ export function getDeadlineCountdownState(value: string, now = Date.now(), endTi
         ? `${padCountdown(days)}:${padCountdown(hours)}:${padCountdown(minutes)}:${padCountdown(seconds)}`
         : formatOverdueCompact(days, hours, minutes),
     isOverdue: diff < 0,
-    tone: getDeadlineCountdownTone(value, now, endTime)
+    tone: getCountdownToneByDiff(diff)
   };
 }
 
-export function formatDeadlineCountdown(value: string, now = Date.now(), endTime?: string | null) {
-  return getDeadlineCountdownState(value, now, endTime).displayLabel;
+export function isTerminalTaskStatus(status: TaskStatus) {
+  return status === "Selesai" || status === "Dibatalkan";
+}
+
+export function normalizeTaskStatusForTime(status: TaskStatus, startDate: string, startTime?: string | null, now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): TaskStatus {
+  if (isTerminalTaskStatus(status)) {
+    return status;
+  }
+
+  if (getTaskStartTimestamp(startDate, startTime, timeZone) > now) {
+    return "Akan Datang";
+  }
+
+  return status === "Akan Datang" ? "Berjalan" : status;
+}
+
+export function normalizeTaskStatusForDate(status: TaskStatus, startDate: string, currentDate = todayDate(), timeZone = APP_DEFAULT_TIME_ZONE): TaskStatus {
+  return normalizeTaskStatusForTime(status, startDate, null, resolveStatusTimestamp(currentDate, timeZone), timeZone);
+}
+
+export function getEffectiveTaskStatus(task: Task, reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return normalizeTaskStatusForTime(task.status, task.startDate, task.startTime, resolveStatusTimestamp(reference, timeZone), timeZone);
+}
+
+export function isTerminalActivityStatus(status: ActivityStatus) {
+  return status === "Selesai" || status === "Dibatalkan";
+}
+
+export function normalizeActivityStatusForTime(status: ActivityStatus, date: string, startTime: string, now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): ActivityStatus {
+  if (isTerminalActivityStatus(status)) {
+    return status;
+  }
+
+  if (getActivityStartTimestamp(date, startTime, timeZone) > now) {
+    return "Akan Datang";
+  }
+
+  return status === "Akan Datang" || status === "Direncanakan" ? "Berjalan" : status;
+}
+
+export function getEffectiveActivityStatus(activity: Activity, reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return normalizeActivityStatusForTime(activity.status, activity.date, activity.startTime, resolveStatusTimestamp(reference, timeZone), timeZone);
+}
+
+export function normalizeTasksForTime(tasks: Task[], now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  let changed = false;
+  const updatedAt = getCurrentTimestampInTimeZone(timeZone);
+  const next = tasks.map((task) => {
+    const status = normalizeTaskStatusForTime(task.status, task.startDate, task.startTime, now, timeZone);
+
+    if (status === task.status) {
+      return task;
+    }
+
+    changed = true;
+    return {
+      ...task,
+      status,
+      completedAt: status === "Selesai" ? task.completedAt : null,
+      updatedAt
+    };
+  });
+
+  return changed ? next : tasks;
+}
+
+export function normalizeActivitiesForTime(activities: Activity[], now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  let changed = false;
+  const updatedAt = getCurrentTimestampInTimeZone(timeZone);
+  const next = activities.map((activity) => {
+    const status = normalizeActivityStatusForTime(activity.status, activity.date, activity.startTime, now, timeZone);
+
+    if (status === activity.status) {
+      return activity;
+    }
+
+    changed = true;
+    return { ...activity, status, updatedAt };
+  });
+
+  return changed ? next : activities;
+}
+
+export function getEffectiveRoutineStatus(routine: Routine, now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): RoutineEffectiveStatus {
+  const date = referenceDate(now, timeZone);
+
+  if (!isRoutineScheduledForDate(routine, date)) {
+    return null;
+  }
+
+  if (getActivityStartTimestamp(date, routine.startTime, timeZone) > now) {
+    return "Akan Datang";
+  }
+
+  return getActivityEndTimestamp(date, routine.endTime, timeZone) >= now ? "Berjalan" : null;
+}
+
+export function getOverdueActivities(activities: Activity[], now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return activities
+    .filter((activity) => getEffectiveActivityStatus(activity, now, timeZone) !== "Selesai" && getActivityEndTimestamp(activity.date, activity.endTime, timeZone) < now)
+    .sort((a, b) => getActivityEndTimestamp(a.date, a.endTime, timeZone) - getActivityEndTimestamp(b.date, b.endTime, timeZone) || a.title.localeCompare(b.title));
+}
+
+export function countActivitiesNeedingAction(activities: Activity[], now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return getOverdueActivities(activities, now, timeZone).length;
+}
+
+export function countActiveWorkItems(tasks: Task[], reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return summarizeTasks(tasks, reference, timeZone).running;
+}
+
+export function restoreItemAtIndex<T extends { id: string }>(items: T[], item: T, index: number) {
+  if (items.some((current) => current.id === item.id)) {
+    return items;
+  }
+
+  const safeIndex = Math.min(Math.max(index, 0), items.length);
+  return [...items.slice(0, safeIndex), item, ...items.slice(safeIndex)];
+}
+
+export function getDeadlineCountdownTone(value: string, now = Date.now(), endTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE): CountdownTone {
+  return getCountdownToneByDiff(getDeadlineTimestamp(value, endTime, timeZone) - now);
+}
+
+export function getDeadlineCountdownState(value: string, now = Date.now(), endTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE): DeadlineCountdownState {
+  return getTimestampCountdownState(getDeadlineTimestamp(value, endTime, timeZone), now);
+}
+
+export function getTaskCountdownState(task: Task, now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): TaskCountdownState | null {
+  const status = getEffectiveTaskStatus(task, now, timeZone);
+
+  if (isTerminalTaskStatus(status)) {
+    return null;
+  }
+
+  if (status === "Akan Datang") {
+    return {
+      ...getTimestampCountdownState(getTaskStartTimestamp(task.startDate, task.startTime, timeZone), now),
+      mode: "upcoming",
+      label: "Mulai dalam"
+    };
+  }
+
+  return {
+    ...getDeadlineCountdownState(task.deadline, now, task.endTime, timeZone),
+    mode: "active",
+    label: "Deadline"
+  };
+}
+
+export function formatDeadlineCountdown(value: string, now = Date.now(), endTime?: string | null, timeZone = APP_DEFAULT_TIME_ZONE) {
+  return getDeadlineCountdownState(value, now, endTime, timeZone).displayLabel;
 }
 
 export function getWeekdayFromDate(value: string): Weekday {
-  const dayIndex = new Date(`${value}T00:00:00`).getDay();
+  const dayIndex = getWeekdayIndexFromDateKey(value);
   const ordered: Weekday[] = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   return ordered[dayIndex];
 }
@@ -202,8 +370,24 @@ export function sortWeekdays(days: Weekday[]) {
   return [...days].sort((a, b) => getWeekdayOrder(a) - getWeekdayOrder(b));
 }
 
-export function formatRoutineDays(days: Weekday[]) {
-  return sortWeekdays(days).join(", ");
+export function formatRoutineDays(days: Weekday[], language: "id" | "en" = "id") {
+  const ordered = sortWeekdays(days);
+
+  if (language === "id") {
+    return ordered.join(", ");
+  }
+
+  const labels: Record<Weekday, string> = {
+    Senin: "Monday",
+    Selasa: "Tuesday",
+    Rabu: "Wednesday",
+    Kamis: "Thursday",
+    Jumat: "Friday",
+    Sabtu: "Saturday",
+    Minggu: "Sunday"
+  };
+
+  return ordered.map((day) => labels[day]).join(", ");
 }
 
 export function isRoutineScheduledForDate(routine: Routine, value: string) {
@@ -215,9 +399,8 @@ function timeToMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
-function getCurrentTimeValue(now = Date.now()) {
-  const date = new Date(now);
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+function getCurrentTimeValue(now = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  return getTimeValueInTimeZone(now, timeZone);
 }
 
 export function sortRoutines(routines: Routine[]) {
@@ -234,13 +417,15 @@ export function sortRoutines(routines: Routine[]) {
 export function buildTodayAgendaItems(
   activities: Activity[],
   routines: Routine[],
-  date = todayDate(),
-  now = Date.now()
+  date: string | undefined = undefined,
+  now = Date.now(),
+  timeZone = APP_DEFAULT_TIME_ZONE
 ): TodayAgendaItem[] {
-  const currentTime = getCurrentTimeValue(now);
+  const resolvedDate = date || todayDate(timeZone, now);
+  const currentTime = getCurrentTimeValue(now, timeZone);
 
   const overdueActivities = activities
-    .filter((activity) => activity.date === date && activity.status !== "Selesai" && activity.endTime < currentTime)
+    .filter((activity) => activity.date === resolvedDate && getEffectiveActivityStatus(activity, now, timeZone) !== "Selesai" && getActivityEndTimestamp(activity.date, activity.endTime, timeZone) < now)
     .sort((a, b) => b.endTime.localeCompare(a.endTime) || a.startTime.localeCompare(b.startTime))
     .map<TodayAgendaItem>((activity) => ({
       id: activity.id,
@@ -250,11 +435,11 @@ export function buildTodayAgendaItems(
       endTime: activity.endTime,
       metaLabel: activity.category,
       href: `/activities?activityId=${activity.id}`,
-      status: activity.status
+      status: getEffectiveActivityStatus(activity, now, timeZone)
     }));
 
   const upcomingActivities = activities
-    .filter((activity) => activity.date === date && activity.status !== "Selesai" && activity.endTime >= currentTime)
+    .filter((activity) => activity.date === resolvedDate && getEffectiveActivityStatus(activity, now, timeZone) !== "Selesai" && activity.endTime >= currentTime)
     .map<TodayAgendaItem>((activity) => ({
       id: activity.id,
       type: "Aktivitas",
@@ -263,11 +448,11 @@ export function buildTodayAgendaItems(
       endTime: activity.endTime,
       metaLabel: activity.category,
       href: `/activities?activityId=${activity.id}`,
-      status: activity.status
+      status: getEffectiveActivityStatus(activity, now, timeZone)
     }));
 
   const visibleRoutines = routines
-    .filter((routine) => isRoutineScheduledForDate(routine, date) && routine.endTime >= currentTime)
+    .filter((routine) => getEffectiveRoutineStatus(routine, now, timeZone) !== null)
     .map<TodayAgendaItem>((routine) => ({
       id: routine.id,
       type: "Rutinitas",
@@ -276,6 +461,7 @@ export function buildTodayAgendaItems(
       endTime: routine.endTime,
       metaLabel: `Prioritas ${routine.priority}`,
       href: `/routines?routineId=${routine.id}`,
+      status: getEffectiveRoutineStatus(routine, now, timeZone) || undefined,
       priority: routine.priority
     }));
 
@@ -295,39 +481,288 @@ export function buildTodayAgendaItems(
   return [...overdueActivities, ...remainingItems];
 }
 
-export function sortTasksByNearestDeadline(tasks: Task[]) {
+export interface ScheduleRange {
+  startDate: string;
+  endDate: string;
+  dates: string[];
+}
+
+export interface ScheduleSummary {
+  total: number;
+  work: number;
+  activity: number;
+  routine: number;
+  missed: number;
+}
+
+function addDays(value: string, offset: number) {
+  return addDaysToDateKey(value, offset);
+}
+
+function startOfWeek(value: string) {
+  return startOfWeekDateKey(value);
+}
+
+function endOfMonth(value: string) {
+  return endOfMonthDateKey(value);
+}
+
+function buildDateRange(startDate: string, totalDays: number) {
+  return Array.from({ length: totalDays }, (_, index) => addDays(startDate, index));
+}
+
+function getScheduleTimestamp(date: string, time: string | null, fallback: "start" | "end", timeZone = APP_DEFAULT_TIME_ZONE) {
+  const resolved = time || (fallback === "start" ? "00:00" : "23:59");
+  return zonedDateTimeToTimestamp(date, resolved, timeZone, fallback === "end");
+}
+
+function mapTaskToScheduleStatus(task: Task, reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): ScheduleDisplayStatus {
+  const status = getEffectiveTaskStatus(task, reference, timeZone);
+
+  if (status === "Selesai") {
+    return "done";
+  }
+
+  if (status === "Dibatalkan") {
+    return "cancelled";
+  }
+
+  return getDeadlineTimestamp(task.deadline, task.endTime, timeZone) < resolveStatusTimestamp(reference, timeZone) ? "missed" : "upcoming";
+}
+
+function mapActivityToScheduleStatus(activity: Activity, reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): ScheduleDisplayStatus {
+  const status = getEffectiveActivityStatus(activity, reference, timeZone);
+
+  if (status === "Selesai") {
+    return "done";
+  }
+
+  if (status === "Dibatalkan") {
+    return "cancelled";
+  }
+
+  return getActivityEndTimestamp(activity.date, activity.endTime, timeZone) < resolveStatusTimestamp(reference, timeZone) ? "missed" : "upcoming";
+}
+
+function mapRoutineOccurrenceStatus(date: string, _startTime: string, endTime: string, reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): ScheduleDisplayStatus {
+  return getActivityEndTimestamp(date, endTime, timeZone) < resolveStatusTimestamp(reference, timeZone) ? "done" : "upcoming";
+}
+
+export function buildScheduleRange(anchorDate: string, viewMode: ScheduleViewMode): ScheduleRange {
+  if (viewMode === "today") {
+    return { startDate: anchorDate, endDate: anchorDate, dates: [anchorDate] };
+  }
+
+  if (viewMode === "week") {
+    const startDate = startOfWeek(anchorDate);
+    const dates = buildDateRange(startDate, 7);
+    return { startDate, endDate: dates.at(-1) || startDate, dates };
+  }
+
+  if (viewMode === "agenda") {
+    const dates = buildDateRange(anchorDate, 14);
+    return { startDate: anchorDate, endDate: dates.at(-1) || anchorDate, dates };
+  }
+
+  const startDate = `${anchorDate.slice(0, 7)}-01`;
+  const dates = buildDateRange(startDate, Number(endOfMonth(anchorDate).slice(-2)));
+  return { startDate, endDate: endOfMonth(anchorDate), dates };
+}
+
+export function buildScheduleItems(tasks: Task[], activities: Activity[], routines: Routine[], range: ScheduleRange, reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  const dateSet = new Set(range.dates);
+
+  const taskItems: ScheduleItem[] = tasks.flatMap((task) => {
+    const hasSpecificTime = Boolean(task.startTime || task.endTime);
+    const date = hasSpecificTime ? task.startDate : task.deadline;
+
+    if (!dateSet.has(date)) {
+      return [];
+    }
+
+    const startTime = task.startTime || (task.endTime ? "00:00" : null);
+    const endTime = task.endTime;
+
+    return [{
+      id: `schedule-task-${task.id}-${date}`,
+      source: "work",
+      sourceId: task.id,
+      title: task.title,
+      category: "work",
+      detailCategory: null,
+      date,
+      startTime,
+      endTime,
+      displayStatus: mapTaskToScheduleStatus(task, reference, timeZone),
+      priority: task.priority,
+      reminder: null,
+      href: `/tasks?taskId=${task.id}`,
+      sourceStatus: getEffectiveTaskStatus(task, reference, timeZone),
+      deadline: task.deadline,
+      notes: task.description,
+      isAllDay: !task.startTime && !task.endTime,
+      sortStartTimestamp: getScheduleTimestamp(date, startTime, "start", timeZone),
+      sortEndTimestamp: getScheduleTimestamp(date, endTime || startTime, "end", timeZone)
+    }];
+  });
+
+  const activityItems: ScheduleItem[] = activities.flatMap((activity) => {
+    if (!dateSet.has(activity.date)) {
+      return [];
+    }
+
+    return [{
+      id: `schedule-activity-${activity.id}-${activity.date}`,
+      source: "activity",
+      sourceId: activity.id,
+      title: activity.title,
+      category: "activity",
+      detailCategory: activity.category,
+      date: activity.date,
+      startTime: activity.startTime,
+      endTime: activity.endTime,
+      displayStatus: mapActivityToScheduleStatus(activity, reference, timeZone),
+      priority: null,
+      reminder: null,
+      href: `/activities?activityId=${activity.id}`,
+      sourceStatus: getEffectiveActivityStatus(activity, reference, timeZone),
+      deadline: null,
+      notes: activity.notes,
+      isAllDay: false,
+      sortStartTimestamp: getScheduleTimestamp(activity.date, activity.startTime, "start", timeZone),
+      sortEndTimestamp: getScheduleTimestamp(activity.date, activity.endTime, "end", timeZone)
+    }];
+  });
+
+  const routineItems: ScheduleItem[] = routines.flatMap((routine) => {
+    return range.dates.flatMap((date) => {
+      if (!isRoutineScheduledForDate(routine, date)) {
+        return [];
+      }
+
+      const sourceStatus = (() => {
+        const startTimestamp = getActivityStartTimestamp(date, routine.startTime, timeZone);
+        const endTimestamp = getActivityEndTimestamp(date, routine.endTime, timeZone);
+        const current = resolveStatusTimestamp(reference, timeZone);
+
+        if (current < startTimestamp) {
+          return "Akan Datang";
+        }
+
+        if (current <= endTimestamp) {
+          return "Berjalan";
+        }
+
+        return null;
+      })();
+
+      return [{
+        id: `schedule-routine-${routine.id}-${date}`,
+        source: "routine",
+        sourceId: routine.id,
+        title: routine.title,
+        category: "routine",
+        detailCategory: null,
+        date,
+        startTime: routine.startTime,
+        endTime: routine.endTime,
+        displayStatus: mapRoutineOccurrenceStatus(date, routine.startTime, routine.endTime, reference, timeZone),
+        priority: routine.priority,
+        reminder: null,
+        href: `/routines?routineId=${routine.id}`,
+        sourceStatus,
+        deadline: null,
+        notes: routine.notes,
+        isAllDay: false,
+        sortStartTimestamp: getScheduleTimestamp(date, routine.startTime, "start", timeZone),
+        sortEndTimestamp: getScheduleTimestamp(date, routine.endTime, "end", timeZone)
+      }];
+    });
+  });
+
+  return [...taskItems, ...activityItems, ...routineItems].sort((a, b) => {
+    if (a.sortStartTimestamp !== b.sortStartTimestamp) {
+      return a.sortStartTimestamp - b.sortStartTimestamp;
+    }
+
+    if (a.sortEndTimestamp !== b.sortEndTimestamp) {
+      return a.sortEndTimestamp - b.sortEndTimestamp;
+    }
+
+    if (a.source !== b.source) {
+      return a.source.localeCompare(b.source);
+    }
+
+    return a.title.localeCompare(b.title);
+  });
+}
+
+export function filterScheduleItems(items: ScheduleItem[], sourceFilter: ScheduleSourceFilter, statusFilter: ScheduleStatusFilter) {
+  return items.filter((item) => {
+    const sourceMatch = sourceFilter === "all" || item.source === sourceFilter;
+    const statusMatch = statusFilter === "all" ? true : item.displayStatus === statusFilter;
+    return sourceMatch && statusMatch;
+  });
+}
+
+export function summarizeScheduleItems(items: ScheduleItem[]): ScheduleSummary {
+  return items.reduce<ScheduleSummary>((summary, item) => {
+    summary.total += 1;
+    summary[item.source] += 1;
+
+    if (item.displayStatus === "missed") {
+      summary.missed += 1;
+    }
+
+    return summary;
+  }, { total: 0, work: 0, activity: 0, routine: 0, missed: 0 });
+}
+
+export function groupScheduleItemsByDate(items: ScheduleItem[]) {
+  return items.reduce<Record<string, ScheduleItem[]>>((groups, item) => {
+    if (!groups[item.date]) {
+      groups[item.date] = [];
+    }
+
+    groups[item.date].push(item);
+    return groups;
+  }, {});
+}
+
+export function sortTasksByNearestDeadline(tasks: Task[], timeZone = APP_DEFAULT_TIME_ZONE) {
   return [...tasks]
-    .filter((task) => task.status !== "Selesai" && task.status !== "Dibatalkan")
+    .filter((task) => !isTerminalTaskStatus(getEffectiveTaskStatus(task, Date.now(), timeZone)))
     .sort(
-      (a, b) => getDeadlineTimestamp(a.deadline, a.endTime) - getDeadlineTimestamp(b.deadline, b.endTime) || a.createdAt.localeCompare(b.createdAt)
+      (a, b) => getDeadlineTimestamp(a.deadline, a.endTime, timeZone) - getDeadlineTimestamp(b.deadline, b.endTime, timeZone) || Date.parse(a.createdAt) - Date.parse(b.createdAt)
     );
 }
 
-
-export function summarizeTasks(tasks: Task[]): TaskSummary {
+export function summarizeTasks(tasks: Task[], reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE): TaskSummary {
   const total = tasks.length;
-  const completed = tasks.filter((task) => task.status === "Selesai").length;
-  const running = tasks.filter((task) => task.status === "Berjalan").length;
-  const pending = tasks.filter((task) => task.status === "Tertunda").length;
-  const canceled = tasks.filter((task) => task.status === "Dibatalkan").length;
-  const today = todayDate();
-  const overdue = tasks.filter(
-    (task) => task.deadline < today && task.status !== "Selesai" && task.status !== "Dibatalkan"
-  ).length;
+  const date = referenceDate(reference, timeZone);
+  const effectiveStatuses = tasks.map((task) => getEffectiveTaskStatus(task, reference, timeZone));
+  const upcoming = effectiveStatuses.filter((status) => status === "Akan Datang").length;
+  const completed = effectiveStatuses.filter((status) => status === "Selesai").length;
+  const running = effectiveStatuses.filter((status) => status === "Berjalan").length;
+  const pending = effectiveStatuses.filter((status) => status === "Tertunda").length;
+  const canceled = effectiveStatuses.filter((status) => status === "Dibatalkan").length;
+  const overdue = tasks.filter((task) => task.deadline < date && !isTerminalTaskStatus(getEffectiveTaskStatus(task, reference, timeZone))).length;
+  const completionBase = total - upcoming;
 
   return {
     total,
+    upcoming,
     running,
     completed,
     pending,
     canceled,
     overdue,
-    completionRate: total ? Math.round((completed / total) * 100) : 0
+    completionRate: completionBase ? Math.round((completed / completionBase) * 100) : 0
   };
 }
 
-export function summarizeActivities(activities: Activity[]): ActivitySummary {
-  const today = todayDate();
+export function summarizeActivities(activities: Activity[], timeZone = APP_DEFAULT_TIME_ZONE, reference: string | number = Date.now()): ActivitySummary {
+  const today = referenceDate(reference, timeZone);
   const categoryCounts = countBy(activities, "category");
   const titleCounts = countBy(activities, "title");
 
@@ -351,10 +786,14 @@ export function topEntry(counts: Record<string, number>) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
 }
 
-export function taskStatusChartData(tasks: Task[]) {
-  const counts = countBy(tasks, "status");
-  const statuses: TaskStatus[] = ["Berjalan", "Selesai", "Tertunda", "Dibatalkan"];
-  return statuses.map((status) => ({ name: status, value: counts[status] || 0 }));
+export function taskStatusChartData(tasks: Task[], reference: string | number = Date.now(), timeZone = APP_DEFAULT_TIME_ZONE) {
+  const counts = tasks.reduce<Record<string, number>>((acc, task) => {
+    const status = getEffectiveTaskStatus(task, reference, timeZone);
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  return taskStatuses.map((status) => ({ name: status, value: counts[status] || 0 }));
 }
 
 export function activityCategoryChartData(activities: Activity[], maxItems?: number) {
@@ -373,7 +812,7 @@ export function activityPerDayChartData(activities: Activity[]) {
   return Object.entries(counts)
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-7)
-    .map(([date, total]) => ({ date: formatDate(date), total }));
+    .map(([date, total]) => ({ date: formatDate(date, "id", APP_DEFAULT_TIME_ZONE), total }));
 }
 
 function buildReportDates(selectedDate: string, period: ReportPeriod) {
@@ -382,26 +821,15 @@ function buildReportDates(selectedDate: string, period: ReportPeriod) {
   }
 
   if (period === "Bulanan") {
-    const base = new Date(`${selectedDate}T00:00:00`);
-    const daysInMonth = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+    const monthEnd = endOfMonthDateKey(selectedDate);
+    const daysInMonth = Number(monthEnd.slice(-2));
 
-    return Array.from({ length: daysInMonth }, (_, index) => {
-      const date = new Date(base.getFullYear(), base.getMonth(), index + 1);
-      return toDateString(date);
-    });
+    return Array.from({ length: daysInMonth }, (_, index) => `${selectedDate.slice(0, 8)}${String(index + 1).padStart(2, "0")}`);
   }
 
-  const selected = new Date(`${selectedDate}T00:00:00`);
-  const day = selected.getDay();
-  const diffToMonday = day === 0 ? 6 : day - 1;
-  const start = new Date(selected);
-  start.setDate(selected.getDate() - diffToMonday);
+  const start = startOfWeekDateKey(selectedDate);
 
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    return toDateString(date);
-  });
+  return Array.from({ length: 7 }, (_, index) => addDaysToDateKey(start, index));
 }
 
 export function getReportPeriodLabel(period: ReportPeriod) {
@@ -420,21 +848,21 @@ export function getReportChartTitle(baseTitle: string, period: ReportPeriod) {
   return `${baseTitle} ${getReportPeriodLabel(period)}`;
 }
 
-export function reportActivityChartData(activities: Activity[], selectedDate: string, period: ReportPeriod) {
+export function reportActivityChartData(activities: Activity[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE) {
   return buildReportDates(selectedDate, period).map((date) => ({
-    date: formatDate(date),
+    date: formatDate(date, "id", timeZone),
     total: activities.filter((activity) => activity.date === date).length
   }));
 }
 
-export function reportTaskProgressChartData(tasks: Task[], selectedDate: string, period: ReportPeriod) {
+export function reportTaskProgressChartData(tasks: Task[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE) {
   return buildReportDates(selectedDate, period).map((date) => ({
-    date: formatDate(date),
-    completed: tasks.filter((task) => task.completedAt?.slice(0, 10) === date).length
+    date: formatDate(date, "id", timeZone),
+    completed: tasks.filter((task) => task.completedAt && dateKeyFromTimestamp(task.completedAt, timeZone) === date).length
   }));
 }
 
-export function filterTasksByReportPeriod(tasks: Task[], selectedDate: string, period: ReportPeriod) {
+export function filterTasksByReportPeriod(tasks: Task[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE) {
   return tasks.filter((task) => {
     if (period === "Harian") {
       return task.deadline === selectedDate;
@@ -444,26 +872,19 @@ export function filterTasksByReportPeriod(tasks: Task[], selectedDate: string, p
       return task.deadline.slice(0, 7) === selectedDate.slice(0, 7);
     }
 
-    return getWeekKey(task.deadline) === getWeekKey(selectedDate);
+    return getWeekKey(task.deadline, timeZone) === getWeekKey(selectedDate, timeZone);
   });
 }
 
-export function dailyActivityChartData(activities: Activity[], routines: Routine[], referenceDate = todayDate()) {
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(referenceDate + "T00:00:00");
-    date.setDate(date.getDate() - (6 - index));
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return year + "-" + month + "-" + day;
-  });
+export function dailyActivityChartData(activities: Activity[], routines: Routine[], referenceDate = todayDate(APP_DEFAULT_TIME_ZONE), timeZone = APP_DEFAULT_TIME_ZONE) {
+  const days = Array.from({ length: 7 }, (_, index) => addDaysToDateKey(referenceDate, index - 6));
 
   return days.map((date) => {
     const activityTotal = activities.filter((activity) => activity.date === date).length;
     const routineTotal = routines.filter((routine) => isRoutineScheduledForDate(routine, date)).length;
 
     return {
-      date: formatDate(date),
+      date: formatDate(date, "id", timeZone),
       total: activityTotal + routineTotal,
       activities: activityTotal,
       routines: routineTotal
@@ -471,16 +892,13 @@ export function dailyActivityChartData(activities: Activity[], routines: Routine
   });
 }
 
-export function weeklyProgressData(tasks: Task[]) {
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - index));
-    return date.toISOString().slice(0, 10);
-  });
+export function weeklyProgressData(tasks: Task[], timeZone = APP_DEFAULT_TIME_ZONE, reference = Date.now()) {
+  const baseDate = todayDate(timeZone, reference);
+  const days = Array.from({ length: 7 }, (_, index) => addDaysToDateKey(baseDate, index - 6));
 
   return days.map((date) => {
-    const completed = tasks.filter((task) => task.completedAt?.slice(0, 10) === date).length;
-    return { date: formatDate(date), completed };
+    const completed = tasks.filter((task) => task.completedAt && dateKeyFromTimestamp(task.completedAt, timeZone) === date).length;
+    return { date: formatDate(date, "id", timeZone), completed };
   });
 }
 
@@ -490,7 +908,7 @@ export function filterByReportPeriod<T extends { date?: string; createdAt: strin
   period: ReportPeriod
 ) {
   return items.filter((item) => {
-    const value = item.date || item.createdAt.slice(0, 10);
+    const value = item.date || dateKeyFromTimestamp(item.createdAt);
 
     if (period === "Harian") {
       return value === selectedDate;
@@ -500,16 +918,18 @@ export function filterByReportPeriod<T extends { date?: string; createdAt: strin
       return value.slice(0, 7) === selectedDate.slice(0, 7);
     }
 
-    return getWeekKey(value) === getWeekKey(selectedDate);
+    return getWeekKey(value, APP_DEFAULT_TIME_ZONE) === getWeekKey(selectedDate, APP_DEFAULT_TIME_ZONE);
   });
 }
 
-export function getWeekKey(value: string) {
-  const date = new Date(`${value}T00:00:00`);
-  const firstDay = new Date(date.getFullYear(), 0, 1);
+export function getWeekKey(value: string, timeZone = APP_DEFAULT_TIME_ZONE) {
+  void timeZone;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const firstDay = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   const dayOffset = Math.floor((date.getTime() - firstDay.getTime()) / 86400000);
-  const week = Math.ceil((dayOffset + firstDay.getDay() + 1) / 7);
-  return `${date.getFullYear()}-${week}`;
+  const week = Math.ceil((dayOffset + firstDay.getUTCDay() + 1) / 7);
+  return `${date.getUTCFullYear()}-${week}`;
 }
 
 export function toCsv(rows: Array<Record<string, string | number | null>>, options: { bom?: boolean; lineEnding?: "\n" | "\r\n" } = {}) {

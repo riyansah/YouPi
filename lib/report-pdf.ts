@@ -2,7 +2,8 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Activity, Task } from "@/lib/types";
-import { formatDate, formatTimeRange } from "@/lib/utils";
+import { dateKeyFromTimestamp, formatDate, formatTimeRange, getEffectiveActivityStatus, getEffectiveTaskStatus } from "@/lib/utils";
+import { formatDateTimeInTimeZone } from "@/lib/time";
 import type { ReportExportModel, ReportPdfMode } from "@/lib/report-export";
 import { getReportPdfFilename } from "@/lib/report-export";
 
@@ -60,12 +61,12 @@ function addHeader(doc: jsPDF, model: ReportExportModel, mode: ReportPdfMode) {
   doc.text("Laporan Produktivitas", page.marginX, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`${model.period} - ${model.periodLabel} | Tanggal acuan ${formatDate(model.selectedDate)}`, page.marginX, 24);
+  doc.text(`${model.period} - ${model.periodLabel} | Tanggal acuan ${formatDate(model.selectedDate, "id", model.timeZone)}`, page.marginX, 24);
   doc.text(`Mode: ${mode}`, page.marginX, 30);
 
   doc.setTextColor(71, 85, 105);
   doc.setFontSize(9);
-  doc.text(`Generated: ${new Date(model.generatedAt).toLocaleString("id-ID")}`, 126, 24);
+  doc.text(`Generated: ${formatDateTimeInTimeZone(model.generatedAt, "id-ID", model.timeZone, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}`, 126, 24);
 }
 
 function addMetrics(doc: jsPDF, model: ReportExportModel, startY: number) {
@@ -159,26 +160,26 @@ function formatOptionalTimeRange(startTime: string | null, endTime: string | nul
     return "-";
   }
 
-  return formatTimeRange(startTime || "-", endTime || "-");
+  return formatTimeRange(endTime ? startTime || "00:00" : startTime || "-", endTime || "-");
 }
 
-function taskRows(tasks: Task[]) {
+function taskRows(tasks: Task[], model: ReportExportModel) {
   return tasks.map((task) => [
     task.title,
-    task.status,
+    getEffectiveTaskStatus(task, model.currentDate, model.timeZone),
     task.priority,
-    formatDate(task.deadline),
+    formatDate(task.deadline, "id", model.timeZone),
     formatOptionalTimeRange(task.startTime, task.endTime),
-    task.completedAt ? formatDate(task.completedAt.slice(0, 10)) : "-"
+    task.completedAt ? formatDate(dateKeyFromTimestamp(task.completedAt, model.timeZone), "id", model.timeZone) : "-"
   ]);
 }
 
-function activityRows(activities: Activity[]) {
+function activityRows(activities: Activity[], model: ReportExportModel) {
   return activities.map((activity) => [
     activity.title,
     activity.category,
-    activity.status,
-    formatDate(activity.date),
+    getEffectiveActivityStatus(activity, model.currentDate, model.timeZone),
+    formatDate(activity.date, "id", model.timeZone),
     formatTimeRange(activity.startTime, activity.endTime),
     activity.notes || "-"
   ]);
@@ -230,16 +231,16 @@ function addFooters(doc: jsPDF) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
-    doc.text("Personal Activity Dashboard", page.marginX, 288);
+    doc.text("YouPi", page.marginX, 288);
     doc.text(`Halaman ${index} dari ${pageCount}`, page.width - page.marginX, 288, { align: "right" });
   }
 }
 
 export async function exportReportPdf({ model, mode, chartElements }: ExportReportPdfInput) {
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" }) as PdfWithAutoTable;
-  const tasks = mode === "Semua data filter" ? model.filteredTasks : model.importantTasks;
-  const activities = mode === "Semua data filter" ? model.filteredActivities : model.importantActivities;
-  const detailLabel = mode === "Semua data filter" ? "Semua Data Filter" : "Detail Penting";
+  const tasks = mode === "full" ? model.filteredTasks : model.importantTasks;
+  const activities = mode === "full" ? model.filteredActivities : model.importantActivities;
+  const detailLabel = mode === "full" ? "All Filtered Data" : "Key Details";
 
   addHeader(doc, model, mode);
   let y = addMetrics(doc, model, 42);
@@ -250,7 +251,7 @@ export async function exportReportPdf({ model, mode, chartElements }: ExportRepo
     `Pekerjaan - ${detailLabel}`,
     y,
     ["Judul", "Status", "Prioritas", "Deadline", "Jam", "Selesai"],
-    taskRows(tasks),
+    taskRows(tasks, model),
     "Tidak ada pekerjaan sesuai filter laporan."
   );
   addTable(
@@ -258,7 +259,7 @@ export async function exportReportPdf({ model, mode, chartElements }: ExportRepo
     `Aktivitas - ${detailLabel}`,
     y,
     ["Judul", "Kategori", "Status", "Tanggal", "Jam", "Catatan"],
-    activityRows(activities),
+    activityRows(activities, model),
     "Tidak ada aktivitas sesuai filter laporan."
   );
   addFooters(doc);

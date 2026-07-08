@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDashboardData, replaceDashboardData, updateDashboardData, type DashboardData } from "@/lib/server/dashboard-db";
 import { getSessionFromRequest } from "@/lib/server/auth";
-import { isActivity, isDashboardSettings, isRoutine, isTask } from "@/lib/storage";
+import { isActivity, isDashboardSettings, isHistoryEvent, isNote, isRoutine, isTask } from "@/lib/storage";
+import { logWithContext, parseJsonBody, setRequestActor, withRequestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,20 @@ function validatePatch(value: unknown): Partial<DashboardData> | null {
     patch.routines = value.routines;
   }
 
+  if ("notes" in value) {
+    if (!Array.isArray(value.notes) || !value.notes.every(isNote)) {
+      return null;
+    }
+    patch.notes = value.notes;
+  }
+
+  if ("history" in value) {
+    if (!Array.isArray(value.history) || !value.history.every(isHistoryEvent)) {
+      return null;
+    }
+    patch.history = value.history;
+  }
+
   if ("settings" in value) {
     if (!isDashboardSettings(value.settings)) {
       return null;
@@ -54,7 +69,7 @@ function validatePatch(value: unknown): Partial<DashboardData> | null {
 function validateDashboardData(value: unknown): DashboardData | null {
   const patch = validatePatch(value);
 
-  if (!patch?.tasks || !patch.activities || !patch.routines || !patch.settings) {
+  if (!patch?.tasks || !patch.activities || !patch.routines || !patch.notes || !patch.history || !patch.settings) {
     return null;
   }
 
@@ -62,24 +77,30 @@ function validateDashboardData(value: unknown): DashboardData | null {
     tasks: patch.tasks,
     activities: patch.activities,
     routines: patch.routines,
+    notes: patch.notes,
+    history: patch.history,
     settings: patch.settings
   };
 }
 
-export function GET(request: NextRequest) {
-  if (!getSessionFromRequest(request)) {
+export const GET = withRequestContext(function GET(request: NextRequest) {
+  const session = getSessionFromRequest(request);
+  if (!session) {
     return unauthorized();
   }
 
+  setRequestActor({ id: session.userId, name: session.user, type: "user" });
   return NextResponse.json(getDashboardData());
-}
+});
 
-export async function PATCH(request: NextRequest) {
-  if (!getSessionFromRequest(request)) {
+export const PATCH = withRequestContext(async function PATCH(request: NextRequest) {
+  const session = getSessionFromRequest(request);
+  if (!session) {
     return unauthorized();
   }
 
-  const patch = validatePatch(await request.json().catch(() => null));
+  setRequestActor({ id: session.userId, name: session.user, type: "user" });
+  const patch = validatePatch(await parseJsonBody(request));
 
   if (!patch) {
     return NextResponse.json({ error: "Payload data tidak valid." }, { status: 400 });
@@ -87,19 +108,40 @@ export async function PATCH(request: NextRequest) {
 
   updateDashboardData(patch);
   return NextResponse.json(getDashboardData());
-}
+});
 
-export async function PUT(request: NextRequest) {
-  if (!getSessionFromRequest(request)) {
+export const PUT = withRequestContext(async function PUT(request: NextRequest) {
+  const session = getSessionFromRequest(request);
+  if (!session) {
     return unauthorized();
   }
 
-  const data = validateDashboardData(await request.json().catch(() => null));
+  setRequestActor({ id: session.userId, name: session.user, type: "user" });
+  const data = validateDashboardData(await parseJsonBody(request));
 
   if (!data) {
     return NextResponse.json({ error: "Payload data tidak valid." }, { status: 400 });
   }
 
-  replaceDashboardData(data);
+  const isReset = data.tasks.length === 0 && data.activities.length === 0 && data.routines.length === 0 && data.notes.length === 0 && data.history.length === 0;
+
+  replaceDashboardData(data, { recordHistory: false });
+  logWithContext({
+    level: "info",
+    category: "USER_ACTIVITY",
+    action: isReset ? "dashboard.reset" : "dashboard.replaced",
+    activity: isReset ? "Menghapus semua data" : "Mengganti seluruh data dashboard",
+    entityType: "dashboard",
+    entityId: "primary",
+    status: "success",
+    description: isReset ? `${session.user} mengosongkan seluruh data dashboard.` : `${session.user} mengganti seluruh data dashboard.`,
+    metadata: {
+      tasks: data.tasks.length,
+      activities: data.activities.length,
+      routines: data.routines.length,
+      notes: data.notes.length,
+      history: data.history.length
+    }
+  });
   return NextResponse.json(getDashboardData());
-}
+});

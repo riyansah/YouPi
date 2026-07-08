@@ -3,12 +3,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { defaultSettings } from "@/lib/data";
-import type { Activity, DashboardSettings, Routine, Task } from "@/lib/types";
+import { LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
+import { normalizeDashboardSettings } from "@/lib/storage";
+import { normalizeActivitiesForTime, normalizeTasksForTime } from "@/lib/utils";
+import type { Activity, DashboardSettings, HistoryEvent, Note, Routine, Task } from "@/lib/types";
 
 interface DashboardData {
   tasks: Task[];
   activities: Activity[];
   routines: Routine[];
+  notes: Note[];
+  history: HistoryEvent[];
   settings: DashboardSettings;
 }
 
@@ -16,6 +21,8 @@ interface DashboardDataContextValue extends DashboardData {
   setTasks: Dispatch<SetStateAction<Task[]>>;
   setActivities: Dispatch<SetStateAction<Activity[]>>;
   setRoutines: Dispatch<SetStateAction<Routine[]>>;
+  setNotes: Dispatch<SetStateAction<Note[]>>;
+  setHistory: Dispatch<SetStateAction<HistoryEvent[]>>;
   setSettings: Dispatch<SetStateAction<DashboardSettings>>;
   replaceDashboardData: (data: DashboardData) => Promise<void>;
 }
@@ -53,6 +60,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasksState] = useState<Task[]>([]);
   const [activities, setActivitiesState] = useState<Activity[]>([]);
   const [routines, setRoutinesState] = useState<Routine[]>([]);
+  const [notes, setNotesState] = useState<Note[]>([]);
+  const [history, setHistoryState] = useState<HistoryEvent[]>([]);
   const [settings, setSettingsState] = useState<DashboardSettings>(defaultSettings);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,17 +84,21 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         }
 
         const data = (await response.json()) as DashboardData;
+        const nextSettings = normalizeDashboardSettings(data.settings);
 
         if (!ignore) {
           setTasksState(data.tasks);
           setActivitiesState(data.activities);
           setRoutinesState(data.routines);
-          setSettingsState(data.settings);
+          setNotesState(data.notes || []);
+          setHistoryState(data.history || []);
+          setSettingsState(nextSettings);
+          window.localStorage.setItem(LANGUAGE_STORAGE_KEY, nextSettings.language);
           setError(null);
         }
       } catch {
         if (!ignore) {
-          setError("Gagal memuat data dashboard.");
+          setError("Failed to load dashboard data.");
         }
       } finally {
         if (!ignore) {
@@ -118,12 +131,49 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
           throw new Error("Failed to save dashboard data.");
         }
 
+        const saved = (await response.json()) as DashboardData;
+        setHistoryState(saved.history || []);
         setError(null);
       } catch {
-        setError("Gagal menyimpan data dashboard. Muat ulang halaman sebelum melanjutkan perubahan.");
+        setError("Failed to save dashboard data. Reload the page before continuing.");
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+
+    function syncTimedStatuses() {
+      const now = Date.now();
+      const timeZone = settings.timeZone;
+
+      setTasksState((current) => {
+        const next = normalizeTasksForTime(current, now, timeZone);
+
+        if (next !== current) {
+          void persistPatch({ tasks: next });
+        }
+
+        return next;
+      });
+
+      setActivitiesState((current) => {
+        const next = normalizeActivitiesForTime(current, now, timeZone);
+
+        if (next !== current) {
+          void persistPatch({ activities: next });
+        }
+
+        return next;
+      });
+    }
+
+    syncTimedStatuses();
+    const timer = window.setInterval(syncTimedStatuses, 30000);
+    return () => window.clearInterval(timer);
+  }, [loaded, persistPatch, settings.timeZone]);
 
   const setTasks = useCallback<Dispatch<SetStateAction<Task[]>>>(
     (action) => {
@@ -158,10 +208,33 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     [persistPatch]
   );
 
+  const setNotes = useCallback<Dispatch<SetStateAction<Note[]>>>(
+    (action) => {
+      setNotesState((current) => {
+        const next = resolveAction(action, current);
+        void persistPatch({ notes: next });
+        return next;
+      });
+    },
+    [persistPatch]
+  );
+
+  const setHistory = useCallback<Dispatch<SetStateAction<HistoryEvent[]>>>(
+    (action) => {
+      setHistoryState((current) => {
+        const next = resolveAction(action, current);
+        void persistPatch({ history: next });
+        return next;
+      });
+    },
+    [persistPatch]
+  );
+
   const setSettings = useCallback<Dispatch<SetStateAction<DashboardSettings>>>(
     (action) => {
       setSettingsState((current) => {
-        const next = resolveAction(action, current);
+        const next = normalizeDashboardSettings(resolveAction(action, current));
+        window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next.language);
         void persistPatch({ settings: next });
         return next;
       });
@@ -186,22 +259,40 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     }
 
     const saved = (await response.json()) as DashboardData;
+    const nextSettings = normalizeDashboardSettings(saved.settings);
     setTasksState(saved.tasks);
     setActivitiesState(saved.activities);
     setRoutinesState(saved.routines);
-    setSettingsState(saved.settings);
+    setNotesState(saved.notes || []);
+    setHistoryState(saved.history || []);
+    setSettingsState(nextSettings);
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, nextSettings.language);
     setError(null);
   }, []);
 
   const value = useMemo(
-    () => ({ tasks, setTasks, activities, setActivities, routines, setRoutines, settings, setSettings, replaceDashboardData }),
-    [activities, replaceDashboardData, routines, setActivities, setRoutines, setSettings, setTasks, settings, tasks]
+    () => ({
+      tasks,
+      setTasks,
+      activities,
+      setActivities,
+      routines,
+      setRoutines,
+      notes,
+      setNotes,
+      history,
+      setHistory,
+      settings,
+      setSettings,
+      replaceDashboardData
+    }),
+    [activities, history, notes, replaceDashboardData, routines, setActivities, setHistory, setNotes, setRoutines, setSettings, setTasks, settings, tasks]
   );
 
   if (!loaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 text-sm font-medium text-slate-600">
-        Memuat dashboard...
+        Loading YouPi...
       </div>
     );
   }

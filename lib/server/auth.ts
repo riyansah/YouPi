@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { getDatabase } from "@/lib/server/dashboard-db";
+import { getCurrentTimestampInTimeZone } from "@/lib/time";
 
 export const sessionCookieName = "activity_session";
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 7;
@@ -8,19 +9,34 @@ const registerWindowMs = 15 * 60 * 1000;
 const loginWindowMs = 15 * 60 * 1000;
 const registerLimit = 5;
 const loginLimit = 10;
+const loginLockoutDurationsMs = [60_000, 5 * 60_000, 10 * 60_000, 30 * 60_000, 60 * 60_000] as const;
 
 interface SessionPayload {
+  userId: string;
   user: string;
   exp: number;
 }
 
 interface AuthConfig {
+  userId: string;
   username: string;
   passwordHash: string;
   sessionSecret: string;
 }
 
+interface LoginLockoutRow {
+  failed_attempts: number;
+  next_lock_index: number;
+  locked_until: number;
+}
+
 export type RateLimitAction = "login" | "register";
+
+export interface LoginLockoutStatus {
+  locked: boolean;
+  lockedUntil: number | null;
+  retryAfterSeconds: number;
+}
 
 function base64UrlJson(value: unknown) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
@@ -34,6 +50,7 @@ function ensureAuthTables() {
   getDatabase().exec(`
     CREATE TABLE IF NOT EXISTS auth_config (
       id INTEGER PRIMARY KEY CHECK (id = 1),
+      user_id TEXT,
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       session_secret TEXT NOT NULL,
@@ -47,18 +64,34 @@ function ensureAuthTables() {
       reset_at INTEGER NOT NULL,
       PRIMARY KEY (action, client_key)
     );
+    CREATE TABLE IF NOT EXISTS auth_login_lockouts (
+      client_key TEXT PRIMARY KEY,
+      failed_attempts INTEGER NOT NULL,
+      next_lock_index INTEGER NOT NULL,
+      locked_until INTEGER NOT NULL
+    );
   `);
+
+  const tableInfo = getDatabase().prepare("PRAGMA table_info(auth_config)").all();
+  const hasUserId = tableInfo.some((row) => String(row.name) === "user_id");
+
+  if (!hasUserId) {
+    getDatabase().exec("ALTER TABLE auth_config ADD COLUMN user_id TEXT");
+  }
+
+  getDatabase().prepare("UPDATE auth_config SET user_id = COALESCE(user_id, 'user-1') WHERE id = 1").run();
 }
 
 function readAuthConfig(): AuthConfig | null {
   ensureAuthTables();
-  const row = getDatabase().prepare("SELECT username, password_hash, session_secret FROM auth_config WHERE id = 1").get();
+  const row = getDatabase().prepare("SELECT user_id, username, password_hash, session_secret FROM auth_config WHERE id = 1").get();
 
   if (!row) {
     return null;
   }
 
   return {
+    userId: String(row.user_id || "user-1"),
     username: String(row.username),
     passwordHash: String(row.password_hash),
     sessionSecret: String(row.session_secret)
@@ -96,17 +129,18 @@ export function registerUser(username: string, password: string) {
   }
 
   const normalizedUsername = username.trim();
-  const now = new Date().toISOString();
+  const now = getCurrentTimestampInTimeZone();
   const passwordHash = createPasswordHash(password);
   const sessionSecret = randomBytes(32).toString("base64url");
+  const userId = "user-1";
 
   getDatabase()
     .prepare(
-      "INSERT INTO auth_config (id, username, password_hash, session_secret, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?)"
+      "INSERT INTO auth_config (id, user_id, username, password_hash, session_secret, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?)"
     )
-    .run(normalizedUsername, passwordHash, sessionSecret, now, now);
+    .run(userId, normalizedUsername, passwordHash, sessionSecret, now, now);
 
-  return { ok: true as const, username: normalizedUsername };
+  return { ok: true as const, userId, username: normalizedUsername };
 }
 
 export function resetUserCredentials(username: string, password: string) {
@@ -114,28 +148,32 @@ export function resetUserCredentials(username: string, password: string) {
 
   const normalizedUsername = username.trim();
   const authConfig = readAuthConfig();
-  const now = new Date().toISOString();
+  const now = getCurrentTimestampInTimeZone();
   const passwordHash = createPasswordHash(password);
   const sessionSecret = randomBytes(32).toString("base64url");
+  const userId = authConfig?.userId || "user-1";
   const db = getDatabase();
 
   if (!authConfig) {
     db.prepare(
-      "INSERT INTO auth_config (id, username, password_hash, session_secret, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?)"
-    ).run(normalizedUsername, passwordHash, sessionSecret, now, now);
+      "INSERT INTO auth_config (id, user_id, username, password_hash, session_secret, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?)"
+    ).run(userId, normalizedUsername, passwordHash, sessionSecret, now, now);
     db.prepare("DELETE FROM auth_rate_limits").run();
-    return { ok: true as const, action: "created" as const, username: normalizedUsername };
+    db.prepare("DELETE FROM auth_login_lockouts").run();
+    return { ok: true as const, action: "created" as const, userId, username: normalizedUsername };
   }
 
-  db.prepare("UPDATE auth_config SET username = ?, password_hash = ?, session_secret = ?, updated_at = ? WHERE id = 1").run(
+  db.prepare("UPDATE auth_config SET user_id = ?, username = ?, password_hash = ?, session_secret = ?, updated_at = ? WHERE id = 1").run(
+    userId,
     normalizedUsername,
     passwordHash,
     sessionSecret,
     now
   );
   db.prepare("DELETE FROM auth_rate_limits").run();
+  db.prepare("DELETE FROM auth_login_lockouts").run();
 
-  return { ok: true as const, action: "updated" as const, username: normalizedUsername };
+  return { ok: true as const, action: "updated" as const, userId, username: normalizedUsername };
 }
 
 export function verifyCredentials(username: string, password: string) {
@@ -149,7 +187,7 @@ export function verifyCredentials(username: string, password: string) {
     return { ok: false as const, reason: "credentials" as const };
   }
 
-  return { ok: true as const, username: authConfig.username };
+  return { ok: true as const, userId: authConfig.userId, username: authConfig.username };
 }
 
 export function changePassword(username: string, currentPassword: string, newPassword: string) {
@@ -169,19 +207,19 @@ export function changePassword(username: string, currentPassword: string, newPas
 
   getDatabase()
     .prepare("UPDATE auth_config SET password_hash = ?, updated_at = ? WHERE id = 1")
-    .run(createPasswordHash(newPassword), new Date().toISOString());
+    .run(createPasswordHash(newPassword), getCurrentTimestampInTimeZone());
 
   return { ok: true as const };
 }
 
-export function createSessionToken(username: string, now = Date.now()) {
+export function createSessionToken(userId: string, username: string, now = Date.now()) {
   const authConfig = readAuthConfig();
 
   if (!authConfig) {
     throw new Error("Auth is not configured.");
   }
 
-  const payload = base64UrlJson({ user: username, exp: now + sessionMaxAgeSeconds * 1000 } satisfies SessionPayload);
+  const payload = base64UrlJson({ userId, user: username, exp: now + sessionMaxAgeSeconds * 1000 } satisfies SessionPayload);
   return `${payload}.${sign(payload, authConfig.sessionSecret)}`;
 }
 
@@ -208,11 +246,11 @@ export function verifySessionToken(token: string | undefined, now = Date.now()) 
   try {
     const payload = JSON.parse(Buffer.from(payloadValue, "base64url").toString("utf8")) as Partial<SessionPayload>;
 
-    if (!payload.user || payload.user !== authConfig.username || !payload.exp || payload.exp <= now) {
+    if (!payload.userId || !payload.user || payload.user !== authConfig.username || payload.userId !== authConfig.userId || !payload.exp || payload.exp <= now) {
       return null;
     }
 
-    return { user: payload.user };
+    return { userId: payload.userId, user: payload.user };
   } catch {
     return null;
   }
@@ -275,4 +313,103 @@ export function checkRateLimit(action: RateLimitAction, clientKey: string, now =
 export function resetRateLimit(action: RateLimitAction, clientKey: string) {
   ensureAuthTables();
   getDatabase().prepare("DELETE FROM auth_rate_limits WHERE action = ? AND client_key = ?").run(action, clientKey);
+}
+
+function getLoginLockoutDurationMs(index: number) {
+  return loginLockoutDurationsMs[Math.min(index, loginLockoutDurationsMs.length - 1)];
+}
+
+function readLoginLockoutRow(clientKey: string): LoginLockoutRow | null {
+  ensureAuthTables();
+  const row = getDatabase()
+    .prepare("SELECT failed_attempts, next_lock_index, locked_until FROM auth_login_lockouts WHERE client_key = ?")
+    .get(clientKey);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    failed_attempts: Number(row.failed_attempts),
+    next_lock_index: Number(row.next_lock_index),
+    locked_until: Number(row.locked_until)
+  };
+}
+
+function writeLoginLockoutRow(clientKey: string, row: LoginLockoutRow) {
+  getDatabase()
+    .prepare(
+      "INSERT OR REPLACE INTO auth_login_lockouts (client_key, failed_attempts, next_lock_index, locked_until) VALUES (?, ?, ?, ?)"
+    )
+    .run(clientKey, row.failed_attempts, row.next_lock_index, row.locked_until);
+}
+
+export function getLoginLockoutStatus(clientKey: string, now = Date.now()): LoginLockoutStatus {
+  const row = readLoginLockoutRow(clientKey);
+  const lockedUntil = row && row.locked_until > now ? row.locked_until : null;
+
+  return {
+    locked: Boolean(lockedUntil),
+    lockedUntil,
+    retryAfterSeconds: lockedUntil ? Math.max(1, Math.ceil((lockedUntil - now) / 1000)) : 0
+  };
+}
+
+export function recordLoginFailure(clientKey: string, now = Date.now()) {
+  const status = getLoginLockoutStatus(clientKey, now);
+
+  if (status.locked) {
+    return {
+      ...status,
+      failedAttempts: 0,
+      justLocked: false,
+      lockoutSeconds: status.retryAfterSeconds
+    };
+  }
+
+  const row = readLoginLockoutRow(clientKey) ?? {
+    failed_attempts: 0,
+    next_lock_index: 0,
+    locked_until: 0
+  };
+  const failedAttempts = row.failed_attempts + 1;
+
+  if (failedAttempts < 3) {
+    writeLoginLockoutRow(clientKey, {
+      failed_attempts: failedAttempts,
+      next_lock_index: row.next_lock_index,
+      locked_until: 0
+    });
+    return {
+      locked: false as const,
+      lockedUntil: null,
+      retryAfterSeconds: 0,
+      failedAttempts,
+      justLocked: false,
+      lockoutSeconds: 0
+    };
+  }
+
+  const lockoutMs = getLoginLockoutDurationMs(row.next_lock_index);
+  const lockedUntil = now + lockoutMs;
+
+  writeLoginLockoutRow(clientKey, {
+    failed_attempts: 0,
+    next_lock_index: Math.min(row.next_lock_index + 1, loginLockoutDurationsMs.length - 1),
+    locked_until: lockedUntil
+  });
+
+  return {
+    locked: true as const,
+    lockedUntil,
+    retryAfterSeconds: Math.ceil(lockoutMs / 1000),
+    failedAttempts,
+    justLocked: true,
+    lockoutSeconds: Math.ceil(lockoutMs / 1000)
+  };
+}
+
+export function resetLoginLockout(clientKey: string) {
+  ensureAuthTables();
+  getDatabase().prepare("DELETE FROM auth_login_lockouts WHERE client_key = ?").run(clientKey);
 }

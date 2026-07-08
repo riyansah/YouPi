@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Clock3, X } from "lucide-react";
+import { Clock3, X } from "lucide-react";
+import type { AppLanguage } from "@/lib/types";
+import { getFieldClassName, getFieldMessageClassName } from "@/lib/field-styles";
 import { cn } from "@/lib/utils";
 
 type PickerMode = "hour" | "minute";
-type Period = "AM" | "PM";
 
 interface TimePickerProps {
   id: string;
@@ -14,6 +15,16 @@ interface TimePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   allowClear?: boolean;
+  language?: AppLanguage;
+  error?: string | null;
+  disabled?: boolean;
+}
+
+interface TimeOption {
+  label: string;
+  value: number;
+  position: number;
+  ring: "outer" | "inner";
 }
 
 function parseTime(value: string) {
@@ -23,7 +34,7 @@ function parseTime(value: string) {
 
   return {
     hours,
-    minutes: Math.round(minutes / 5) * 5
+    minutes: Math.min(55, Math.round(minutes / 5) * 5)
   };
 }
 
@@ -31,35 +42,51 @@ function formatTime(hours: number, minutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-function getPeriod(hours: number): Period {
-  return hours >= 12 ? "PM" : "AM";
+const hourValues: TimeOption[] = [
+  ...Array.from({ length: 12 }, (_, index) => {
+    const label = index + 1;
+    return { label: String(label), value: label, position: label, ring: "outer" as const };
+  }),
+  ...Array.from({ length: 12 }, (_, index) => {
+    const label = index + 13;
+    return { label: String(label), value: label === 24 ? 0 : label, position: label - 12, ring: "inner" as const };
+  })
+];
+const minuteValues: TimeOption[] = Array.from({ length: 12 }, (_, index) => ({
+  label: String(index * 5).padStart(2, "0"),
+  value: index * 5,
+  position: index,
+  ring: "outer" as const
+}));
+
+function getOptionPosition(option: TimeOption) {
+  const radius = option.ring === "inner" ? 58 : 92;
+  const position = option.position % 12;
+  const angle = (position / 12) * Math.PI * 2 - Math.PI / 2;
+
+  return {
+    left: `calc(50% + ${Math.cos(angle) * radius}px)`,
+    top: `calc(50% + ${Math.sin(angle) * radius}px)`
+  };
 }
 
-function toFaceHour(hours: number) {
-  const value = hours % 12;
-  return value === 0 ? 12 : value;
-}
-
-function toTwentyFourHour(faceHour: number, period: Period) {
-  if (period === "AM") {
-    return faceHour === 12 ? 0 : faceHour;
-  }
-
-  return faceHour === 12 ? 12 : faceHour + 12;
-}
-
-const hourValues = Array.from({ length: 12 }, (_, index) => index + 1);
-const minuteValues = Array.from({ length: 12 }, (_, index) => index * 5);
-
-export function TimePicker({ id, label, value, onChange, placeholder = "Pilih jam", allowClear = false }: TimePickerProps) {
+export function TimePicker({ id, label, value, onChange, placeholder, allowClear = false, language = "id", error = null, disabled = false }: TimePickerProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const parsedValue = useMemo(() => parseTime(value || "00:00"), [value]);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<PickerMode>("hour");
   const [draftHours, setDraftHours] = useState(parsedValue.hours);
   const [draftMinutes, setDraftMinutes] = useState(parsedValue.minutes);
-  const period = getPeriod(draftHours);
-  const selectedFaceHour = toFaceHour(draftHours);
+
+  const text = {
+    placeholder: placeholder || (language === "id" ? "Pilih jam" : "Select time"),
+    clear: language === "id" ? "Kosongkan" : "Clear",
+    choose: language === "id" ? "Pilih" : "Choose",
+    hour: language === "id" ? "Jam" : "Hour",
+    minute: language === "id" ? "Menit" : "Minute",
+    close: language === "id" ? "Tutup pemilih waktu" : "Close time picker",
+    format: language === "id" ? "Format 24 jam" : "24-hour format"
+  };
 
   useEffect(() => {
     if (!open) {
@@ -96,13 +123,16 @@ export function TimePicker({ id, label, value, onChange, placeholder = "Pilih ja
   }, [open]);
 
   function commit(nextHours = draftHours, nextMinutes = draftMinutes) {
+    if (disabled) {
+      return;
+    }
+
     onChange(formatTime(nextHours, nextMinutes));
   }
 
-  function selectHour(faceHour: number) {
-    const nextHours = toTwentyFourHour(faceHour, period);
-    setDraftHours(nextHours);
-    commit(nextHours, draftMinutes);
+  function selectHour(hours: number) {
+    setDraftHours(hours);
+    commit(hours, draftMinutes);
     setMode("minute");
   }
 
@@ -112,13 +142,11 @@ export function TimePicker({ id, label, value, onChange, placeholder = "Pilih ja
     setOpen(false);
   }
 
-  function selectPeriod(nextPeriod: Period) {
-    const nextHours = toTwentyFourHour(selectedFaceHour, nextPeriod);
-    setDraftHours(nextHours);
-    commit(nextHours, draftMinutes);
-  }
-
   function clearValue() {
+    if (disabled) {
+      return;
+    }
+
     onChange("");
     setOpen(false);
   }
@@ -134,30 +162,40 @@ export function TimePicker({ id, label, value, onChange, placeholder = "Pilih ja
         <button
           id={id}
           type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="flex w-full items-center justify-between gap-3 rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          onClick={() => {
+            if (disabled) {
+              return;
+            }
+
+            setOpen((current) => !current);
+          }}
+          className={cn(getFieldClassName({ filled: Boolean(value), error: Boolean(error), disabled }), "flex items-center justify-between gap-3 text-left")}
           aria-haspopup="dialog"
           aria-expanded={open}
+          disabled={disabled}
         >
-          <span className={value ? "text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}>{value || placeholder}</span>
+          <span className={value ? "text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}>{value || text.placeholder}</span>
           <Clock3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
         </button>
         {allowClear ? (
           <button
             type="button"
             onClick={clearValue}
-            className="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            aria-label={`Kosongkan ${label.toLowerCase()}`}
+            className={cn("inline-flex h-10 w-10 items-center justify-center rounded border text-slate-600 dark:text-slate-200", disabled ? "cursor-not-allowed border-slate-200 bg-slate-100 opacity-70 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500" : "border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800")}
+            aria-label={`${text.clear} ${label.toLowerCase()}`}
+            disabled={disabled}
           >
             <X className="h-4 w-4" />
           </button>
         ) : null}
       </div>
 
+      {error ? <p className={getFieldMessageClassName("error")}>{error}</p> : null}
+
       {open ? (
         <div
           role="dialog"
-          aria-label={`Pilih ${label.toLowerCase()}`}
+          aria-label={`${text.choose} ${label.toLowerCase()}`}
           className="absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900"
         >
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -172,7 +210,7 @@ export function TimePicker({ id, label, value, onChange, placeholder = "Pilih ja
                     mode === item ? "bg-teal-700 text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   )}
                 >
-                  {item === "hour" ? "Jam" : "Menit"}
+                  {item === "hour" ? text.hour : text.minute}
                 </button>
               ))}
             </div>
@@ -180,7 +218,7 @@ export function TimePicker({ id, label, value, onChange, placeholder = "Pilih ja
               type="button"
               onClick={() => setOpen(false)}
               className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              aria-label="Tutup pilihan jam"
+              aria-label={text.close}
             >
               <X className="h-4 w-4" />
             </button>
@@ -188,69 +226,31 @@ export function TimePicker({ id, label, value, onChange, placeholder = "Pilih ja
 
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-lg font-bold tabular-nums text-slate-950 dark:text-slate-50">{formatTime(draftHours, draftMinutes)}</p>
-            <div className="inline-flex rounded border border-slate-200 p-1 dark:border-slate-700">
-              {(["AM", "PM"] as Period[]).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => selectPeriod(item)}
-                  className={cn(
-                    "rounded px-2.5 py-1 text-xs font-semibold",
-                    period === item ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{text.format}</p>
           </div>
 
           <div className="relative mx-auto h-56 w-56 rounded-full border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
             <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-700" />
             {values.map((item) => {
-              const angle = mode === "hour" ? (item % 12) * 30 - 90 : item * 6 - 90;
-              const radius = 88;
-              const x = Math.cos((angle * Math.PI) / 180) * radius;
-              const y = Math.sin((angle * Math.PI) / 180) * radius;
-              const active = mode === "hour" ? item === selectedFaceHour : item === draftMinutes;
+              const selected = mode === "hour" ? draftHours === item.value : draftMinutes === item.value;
+              const position = getOptionPosition(item);
 
               return (
                 <button
-                  key={item}
+                  key={`${mode}-${item.label}`}
                   type="button"
-                  onClick={() => (mode === "hour" ? selectHour(item) : selectMinute(item))}
+                  onClick={() => (mode === "hour" ? selectHour(item.value) : selectMinute(item.value))}
                   className={cn(
-                    "absolute left-1/2 top-1/2 flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition",
-                    active
-                      ? "bg-teal-700 text-white shadow-sm"
-                      : "bg-white text-slate-700 hover:bg-teal-50 hover:text-teal-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-teal-950 dark:hover:text-teal-100"
+                    "absolute flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                    selected ? "bg-teal-700 text-white shadow" : "text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-slate-700"
                   )}
-                  style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }}
+                  style={position}
+                  aria-label={mode === "hour" ? `${text.hour} ${item.label}` : `${text.minute} ${item.label}`}
                 >
-                  {mode === "hour" ? item : String(item).padStart(2, "0")}
+                  {item.label}
                 </button>
               );
             })}
-          </div>
-
-          <div className="mt-4 flex gap-2">
-            {allowClear ? (
-              <button
-                type="button"
-                onClick={clearValue}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                Kosongkan
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
-            >
-              <Check className="h-4 w-4" />
-              Selesai
-            </button>
           </div>
         </div>
       ) : null}

@@ -25,9 +25,17 @@ function getInternalOrigin() {
   return process.env.APP_INTERNAL_ORIGIN || `http://127.0.0.1:${process.env.PORT || "3000"}`;
 }
 
-async function readAuthStatus(request: NextRequest): Promise<AuthStatus> {
+function getRequestId(request: NextRequest) {
+  return request.headers.get("x-request-id") || crypto.randomUUID();
+}
+
+async function readAuthStatus(request: NextRequest, requestId: string): Promise<AuthStatus> {
   const response = await fetch(new URL("/api/auth/status", getInternalOrigin()), {
-    headers: { cookie: request.headers.get("cookie") || "" },
+    headers: {
+      cookie: request.headers.get("cookie") || "",
+      "x-request-id": requestId,
+      "user-agent": request.headers.get("user-agent") || "middleware"
+    },
     cache: "no-store"
   });
 
@@ -38,42 +46,48 @@ async function readAuthStatus(request: NextRequest): Promise<AuthStatus> {
   return (await response.json()) as AuthStatus;
 }
 
+function finalizeResponse(response: NextResponse, requestId: string) {
+  response.headers.set("x-request-id", requestId);
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const requestId = getRequestId(request);
 
   if (isAuthStatusPath(pathname)) {
-    return NextResponse.next();
+    return finalizeResponse(NextResponse.next(), requestId);
   }
 
-  const status = await readAuthStatus(request);
+  const status = await readAuthStatus(request, requestId);
 
   if (!status.registered) {
     if (isPublicBeforeRegister(pathname)) {
-      return NextResponse.next();
+      return finalizeResponse(NextResponse.next(), requestId);
     }
 
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Belum ada akun. Silakan register terlebih dahulu." }, { status: 401 });
+      return finalizeResponse(NextResponse.json({ error: "Belum ada akun. Silakan register terlebih dahulu." }, { status: 401 }), requestId);
     }
 
-    return NextResponse.redirect(new URL("/register", request.url));
+    return finalizeResponse(NextResponse.redirect(new URL("/register", request.url)), requestId);
   }
 
   if (status.authenticated && (pathname === "/login" || pathname === "/register")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return finalizeResponse(NextResponse.redirect(new URL("/dashboard", request.url)), requestId);
   }
 
   if (status.authenticated || isPublicWhenRegistered(pathname)) {
-    return NextResponse.next();
+    return finalizeResponse(NextResponse.next(), requestId);
   }
 
   if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return finalizeResponse(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), requestId);
   }
 
   const loginUrl = new URL("/login", request.url);
   loginUrl.searchParams.set("next", `${pathname}${search}`);
-  return NextResponse.redirect(loginUrl);
+  return finalizeResponse(NextResponse.redirect(loginUrl), requestId);
 }
 
 export const config = {

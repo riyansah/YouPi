@@ -1,9 +1,12 @@
 import type { Activity, ReportPeriod, Task, TaskPriority } from "@/lib/types";
+import { APP_DEFAULT_TIME_ZONE, getCurrentTimestampInTimeZone } from "@/lib/time";
 import {
   activityCategoryChartData,
   filterByReportPeriod,
   filterTasksByReportPeriod,
   formatDate,
+  getEffectiveActivityStatus,
+  getEffectiveTaskStatus,
   getReportPeriodLabel,
   reportActivityChartData,
   reportTaskProgressChartData,
@@ -11,12 +14,13 @@ import {
   summarizeTasks,
   taskStatusChartData,
   toCsv,
-  todayDate
+  todayDate,
+  dateKeyFromTimestamp
 } from "@/lib/utils";
 
-export type ReportPdfMode = "Ringkas + detail penting" | "Semua data filter";
+export type ReportPdfMode = "summary" | "full";
 
-export const reportPdfModes: ReportPdfMode[] = ["Ringkas + detail penting", "Semua data filter"];
+export const reportPdfModes: ReportPdfMode[] = ["summary", "full"];
 
 export const reportCsvColumns = [
   "section",
@@ -55,6 +59,7 @@ export interface ReportExportModel {
   selectedDate: string;
   currentDate: string;
   generatedAt: string;
+  timeZone: string;
   filteredTasks: Task[];
   filteredActivities: Activity[];
   importantTasks: Task[];
@@ -77,6 +82,7 @@ interface BuildReportExportModelInput {
   period: ReportPeriod;
   currentDate?: string;
   generatedAt?: string;
+  timeZone?: string;
 }
 
 const priorityRank: Record<TaskPriority, number> = {
@@ -134,12 +140,15 @@ function uniqueTasks(tasks: Task[]) {
   });
 }
 
-function getImportantTasks(tasks: Task[], currentDate: string) {
+function getImportantTasks(tasks: Task[], currentDate: string, timeZone: string) {
   const ordered = sortTasksForReport(tasks);
-  const active = ordered.filter((task) => task.status !== "Selesai" && task.status !== "Dibatalkan");
+  const active = ordered.filter((task) => {
+    const status = getEffectiveTaskStatus(task, currentDate, timeZone);
+    return status !== "Selesai" && status !== "Dibatalkan";
+  });
   const overdue = active.filter((task) => task.deadline < currentDate);
   const highPriority = active.filter((task) => task.priority === "Tinggi");
-  const pending = active.filter((task) => task.status === "Tertunda");
+  const pending = active.filter((task) => getEffectiveTaskStatus(task, currentDate, timeZone) === "Tertunda");
   const important = uniqueTasks([...overdue, ...highPriority, ...pending]);
 
   return (important.length ? important : ordered).slice(0, 8);
@@ -157,7 +166,7 @@ function reportCsvRow(input: Partial<ReportCsvRow>): ReportCsvRow {
 }
 
 function completedDate(task: Task) {
-  return task.completedAt ? task.completedAt.slice(0, 10) : null;
+  return task.completedAt ? dateKeyFromTimestamp(task.completedAt) : null;
 }
 
 export function buildReportExportModel({
@@ -165,37 +174,43 @@ export function buildReportExportModel({
   activities,
   selectedDate,
   period,
-  currentDate = todayDate(),
-  generatedAt = new Date().toISOString()
+  currentDate,
+  generatedAt = getCurrentTimestampInTimeZone(),
+  timeZone = APP_DEFAULT_TIME_ZONE
 }: BuildReportExportModelInput): ReportExportModel {
-  const filteredTasks = sortTasksForReport(filterTasksByReportPeriod(tasks, selectedDate, period));
+  const resolvedCurrentDate = currentDate || todayDate(timeZone);
+  const filteredTasks = sortTasksForReport(filterTasksByReportPeriod(tasks, selectedDate, period, timeZone));
   const filteredActivities = sortActivitiesForReport(filterByReportPeriod(activities, selectedDate, period));
-  const taskSummary = summarizeTasks(filteredTasks);
-  const activitySummary = summarizeActivities(filteredActivities);
-  const overdueTasks = filteredTasks.filter(
-    (task) => task.deadline < currentDate && task.status !== "Selesai" && task.status !== "Dibatalkan"
-  );
+  const taskSummary = summarizeTasks(filteredTasks, resolvedCurrentDate, timeZone);
+  const activitySummary = summarizeActivities(filteredActivities, timeZone, resolvedCurrentDate);
+  const overdueTasks = filteredTasks.filter((task) => {
+    const status = getEffectiveTaskStatus(task, resolvedCurrentDate, timeZone);
+    return task.deadline < resolvedCurrentDate && status !== "Selesai" && status !== "Dibatalkan";
+  });
   const periodLabel = getReportPeriodLabel(period);
 
   return {
     period,
     periodLabel,
     selectedDate,
-    currentDate,
+    currentDate: resolvedCurrentDate,
     generatedAt,
+    timeZone,
     filteredTasks,
     filteredActivities,
-    importantTasks: getImportantTasks(filteredTasks, currentDate),
+    importantTasks: getImportantTasks(filteredTasks, resolvedCurrentDate, timeZone),
     importantActivities: getImportantActivities(filteredActivities),
     overdueTasks,
     taskSummary,
     activitySummary,
-    taskStatusSeries: taskStatusChartData(filteredTasks),
+    taskStatusSeries: taskStatusChartData(filteredTasks, resolvedCurrentDate, timeZone),
     categorySeries: activityCategoryChartData(filteredActivities, 4),
-    activitySeries: reportActivityChartData(filteredActivities, selectedDate, period),
-    taskProgressSeries: reportTaskProgressChartData(tasks, selectedDate, period),
+    activitySeries: reportActivityChartData(filteredActivities, selectedDate, period, timeZone),
+    taskProgressSeries: reportTaskProgressChartData(tasks, selectedDate, period, timeZone),
     metrics: [
       { label: "Total pekerjaan", value: taskSummary.total },
+      { label: "Pekerjaan akan datang", value: taskSummary.upcoming },
+      { label: "Pekerjaan berjalan", value: taskSummary.running },
       { label: "Pekerjaan selesai", value: taskSummary.completed },
       { label: "Pekerjaan tertunda", value: taskSummary.pending },
       { label: "Total aktivitas", value: activitySummary.total },
@@ -205,8 +220,8 @@ export function buildReportExportModel({
       { label: "Lewat deadline", value: overdueTasks.length }
     ],
     insights: [
-      `Pada ${periodLabel.toLowerCase()} dengan tanggal acuan ${formatDate(selectedDate)}, ada ${taskSummary.completed} pekerjaan selesai dari ${taskSummary.total} pekerjaan.`,
-      `Tingkat penyelesaian pekerjaan berada di ${taskSummary.completionRate}% dengan ${overdueTasks.length} pekerjaan melewati deadline.`,
+      `Pada ${periodLabel.toLowerCase()} dengan tanggal acuan ${formatDate(selectedDate, "id", timeZone)}, ada ${taskSummary.completed} pekerjaan selesai dari ${taskSummary.total} pekerjaan.`,
+      `Tingkat penyelesaian pekerjaan berada di ${taskSummary.completionRate}% dengan ${taskSummary.upcoming} pekerjaan akan datang dan ${overdueTasks.length} pekerjaan melewati deadline.`,
       `Aktivitas tercatat berjumlah ${activitySummary.total}; kategori dominan adalah ${activitySummary.dominantCategory} dan aktivitas paling sering adalah ${activitySummary.mostFrequentActivity}.`
     ]
   };
@@ -234,7 +249,7 @@ export function buildReportCsvRows(model: ReportExportModel): ReportCsvRow[] {
         section: "pekerjaan",
         type: "task",
         title: task.title,
-        status: task.status,
+        status: getEffectiveTaskStatus(task, model.currentDate, model.timeZone),
         priority: task.priority,
         date: task.startDate,
         start_time: task.startTime,
@@ -252,7 +267,7 @@ export function buildReportCsvRows(model: ReportExportModel): ReportCsvRow[] {
         section: "aktivitas",
         type: "activity",
         title: activity.title,
-        status: activity.status,
+        status: getEffectiveActivityStatus(activity, model.currentDate, model.timeZone),
         category: activity.category,
         date: activity.date,
         start_time: activity.startTime,
@@ -308,7 +323,7 @@ export function buildReportExcelSheets(model: ReportExportModel): ReportExcelShe
         ["Judul", "Status", "Prioritas", "Tanggal Mulai", "Deadline", "Jam Mulai", "Jam Selesai", "Selesai Pada", "Deskripsi"],
         ...model.filteredTasks.map((task) => [
           task.title,
-          task.status,
+          getEffectiveTaskStatus(task, model.currentDate, model.timeZone),
           task.priority,
           task.startDate,
           task.deadline,
@@ -326,7 +341,7 @@ export function buildReportExcelSheets(model: ReportExportModel): ReportExcelShe
         ...model.filteredActivities.map((activity) => [
           activity.title,
           activity.category,
-          activity.status,
+          getEffectiveActivityStatus(activity, model.currentDate, model.timeZone),
           activity.date,
           activity.startTime,
           activity.endTime,
@@ -350,15 +365,15 @@ export function buildReportExcelSheets(model: ReportExportModel): ReportExcelShe
 }
 
 export function getReportPdfFilename(model: ReportExportModel, mode: ReportPdfMode) {
-  const suffix = mode === "Semua data filter" ? "lengkap" : "ringkas";
+  const suffix = mode === "full" ? "full" : "summary";
 
-  return `laporan-produktivitas-${model.period.toLowerCase()}-${model.selectedDate}-${suffix}.pdf`;
+  return `productivity-report-${model.period.toLowerCase()}-${model.selectedDate}-${suffix}.pdf`;
 }
 
 export function getReportCsvFilename(model: ReportExportModel) {
-  return `laporan-produktivitas-${model.period.toLowerCase()}-${model.selectedDate}-detail.csv`;
+  return `productivity-report-${model.period.toLowerCase()}-${model.selectedDate}-detail.csv`;
 }
 
 export function getReportExcelFilename(model: ReportExportModel) {
-  return `laporan-produktivitas-${model.period.toLowerCase()}-${model.selectedDate}.xls`;
+  return `productivity-report-${model.period.toLowerCase()}-${model.selectedDate}.xls`;
 }

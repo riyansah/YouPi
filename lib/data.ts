@@ -1,4 +1,5 @@
-import type { Activity, DashboardSettings, Routine, Task } from "@/lib/types";
+import { APP_DEFAULT_TIME_ZONE } from "@/lib/time";
+import type { Activity, DashboardSettings, Note, Routine, Task } from "@/lib/types";
 
 export const defaultTasks: Task[] = [
   {
@@ -407,7 +408,12 @@ export const defaultRoutines: Routine[] = [
 ];
 
 export const defaultSettings: DashboardSettings = {
-  dashboardName: "Dashboard Aktivitas Pribadi",
+  dashboardName: "YouPi Dashboard",
   theme: "Terang",
-  preferredCategories: ["Kerja", "Belajar", "Project Pribadi"]
+  preferredCategories: ["Kerja", "Belajar", "Project Pribadi"],
+  language: "en",
+  timeZone: APP_DEFAULT_TIME_ZONE
 };
+
+
+export const defaultNotes: Note[] = [];

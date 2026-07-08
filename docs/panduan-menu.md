@@ -1,16 +1,16 @@
-# Panduan Menu Personal Activity Dashboard
+# Panduan Menu YouPi
 
 Panduan ini menjelaskan fungsi setiap menu utama agar pengguna bisa langsung memahami alur kerja aplikasi.
 
 ## Ringkasan Aplikasi
 
-`Personal Activity Dashboard` dipakai untuk mengelola:
+`YouPi` dipakai untuk mengelola:
 
-- pekerjaan,
-- aktivitas harian,
-- rutinitas mingguan,
-- laporan produktivitas,
-- dan pengaturan data pribadi.
+- work,
+- activities,
+- routines,
+- reports,
+- dan settings.
 
 Semua data disimpan di SQLite dan hanya bisa diakses setelah login.
 
@@ -18,171 +18,62 @@ Semua data disimpan di SQLite dan hanya bisa diakses setelah login.
 
 Menu utama ada di sidebar:
 
+- Badge pada `Work` menampilkan jumlah pekerjaan yang sedang `Berjalan`, dengan tooltip yang menjelaskan arti angkanya.
+- Badge pada `Activities` menampilkan jumlah aktivitas overdue yang masih membutuhkan aksi pengguna, dengan tooltip yang menjelaskan arti angkanya.
+
+
 - `Dashboard`
-- `Pekerjaan`
-- `Aktivitas Harian`
-- `Rutinitas`
-- `Laporan`
-- `Pengaturan`
+- `Work` atau `Pekerjaan`
+- `Activities` atau `Aktivitas`
+- `Routines` atau `Rutinitas`
+- `Schedule` atau `Jadwal`
+- `Notes` atau `Catatan`
+- `History` atau `Riwayat`
+- `Reports` atau `Laporan`
+- `Settings` atau `Pengaturan`
 
-Pada mobile, sidebar dibuka dari tombol menu di header. Brand `Personal` dan `Activity Hub` di sidebar sama-sama mengarah ke dashboard.
+Pada mobile, sidebar dibuka dari tombol menu di header. Brand `YouPi` dan tagline `You Plan It` di sidebar sama-sama mengarah ke dashboard. Setelah login, indikator hari, tanggal, dan jam aktif tampil sejajar dengan judul menu pada setiap halaman, mengikuti waktu tetap `Asia/Jakarta (WIB)`, dan sekarang tampil dalam kartu waktu yang lebih menonjol.
 
-## Dashboard
+## Menu Schedule
 
-`Dashboard` adalah halaman ringkasan utama.
+`Schedule` adalah pusat tampilan waktu untuk menggabungkan data dari `Work`, `Activities`, dan `Routines` dalam satu halaman. Occurrence `Routines` yang jamnya sudah lewat tidak dianggap `missed`; item tersebut ditandai selesai di tampilan jadwal.
 
-Di halaman ini pengguna bisa melihat:
+Di halaman ini pengguna bisa:
 
-- kartu ringkasan pekerjaan dan aktivitas,
-- grafik status pekerjaan,
-- grafik kegiatan,
-- panel `Deadline Terdekat`,
-- panel `Kegiatan Hari Ini`.
+- melihat jadwal hari ini, minggu ini, bulan ini, atau daftar agenda,
+- memfilter item berdasarkan sumber data dan status,
+- melihat ringkasan jumlah work, activity, routine, dan item missed,
+- membuka item terkait kembali ke halaman `Work`, `Activities`, atau `Routines`.
 
-Interaksi penting:
+## Menu Notes
 
-- kartu ringkasan bisa diklik untuk membuka halaman terkait,
-- item pada `Deadline Terdekat` bisa diklik untuk membuka pekerjaan terkait,
-- item pada `Kegiatan Hari Ini` bisa diklik untuk membuka aktivitas atau rutinitas terkait,
-- aktivitas dan rutinitas pada agenda hari ini bisa langsung ditandai `Selesai`.
+`Notes` adalah pusat catatan pribadi di YouPi. Note bisa berdiri sendiri sebagai catatan personal atau dihubungkan ke item `Work`, `Activities`, dan `Routines`.
 
-Panel deadline dan agenda memakai pagination sendiri, masing-masing `4 item per halaman`.
+Di halaman ini pengguna bisa:
 
-## Pekerjaan
+- membuat, membuka, mengedit, dan menghapus note,
+- mencari note berdasarkan judul, isi, tag, atau kategori,
+- memfilter note berdasarkan kategori atau status pinned,
+- membuka note cepat lewat drawer atau edit panjang lewat halaman detail note,
+- melihat note terkait saat mengedit item `Work`, `Activities`, atau `Routines`.
 
-`Pekerjaan` dipakai untuk mengelola task.
 
-Fungsi utamanya:
+## Menu History
 
-- tambah pekerjaan,
-- edit pekerjaan,
-- hapus pekerjaan dengan konfirmasi,
-- ubah status pekerjaan,
-- tandai cepat dengan tombol `Selesai`,
-- filter berdasarkan status,
-- filter berdasarkan prioritas.
+`History` adalah timeline otomatis untuk melihat jejak perubahan penting dari `Work`, `Activities`, `Routines`, dan `Notes`.
 
-Data yang dicatat pada pekerjaan:
+Di halaman ini pengguna bisa:
 
-- judul,
-- deskripsi,
-- status,
-- prioritas,
-- tanggal mulai,
-- deadline,
-- jam mulai opsional,
-- jam selesai opsional.
+- mencari riwayat berdasarkan title, description, kategori, atau event,
+- memfilter riwayat berdasarkan kategori item, jenis event, dan rentang tanggal,
+- membuka detail history di drawer kanan,
+- kembali ke item terkait jika item tersebut masih tersedia.
 
-Catatan penting:
+## Catatan
 
-- jika jam mulai dan jam selesai diisi, countdown deadline akan mengikuti jam selesai,
-- jika jam tidak diisi, countdown memakai akhir hari deadline,
-- daftar pekerjaan memakai pagination `10 item per halaman`.
+- Bahasa antarmuka dapat diubah dari menu `Settings`, sementara seluruh waktu aplikasi dikunci ke `Asia/Jakarta (WIB)`.
+- Default bahasa untuk preference baru adalah `English`, dan seluruh waktu sistem memakai `Asia/Jakarta`.
 
-## Aktivitas Harian
-
-`Aktivitas Harian` dipakai untuk mencatat kegiatan pada tanggal tertentu.
-
-Fungsi utamanya:
-
-- tambah aktivitas,
-- edit aktivitas,
-- hapus aktivitas dengan konfirmasi,
-- ubah status aktivitas,
-- tandai selesai dengan cepat,
-- filter berdasarkan tanggal,
-- filter berdasarkan kategori, termasuk filter `Preferensi` dari Pengaturan.
-
-Data aktivitas:
-
-- judul,
-- kategori,
-- tanggal,
-- jam mulai,
-- jam selesai,
-- status,
-- catatan.
-
-Daftar aktivitas memakai pagination `10 item per halaman`.
-
-## Rutinitas
-
-`Rutinitas` dipakai untuk mencatat kegiatan berulang mingguan.
-
-Fungsi utamanya:
-
-- tambah rutinitas,
-- edit rutinitas,
-- hapus rutinitas dengan konfirmasi,
-- pilih satu atau lebih hari aktif.
-
-Data rutinitas:
-
-- judul,
-- hari aktif,
-- jam mulai,
-- jam selesai,
-- prioritas,
-- catatan.
-
-Rutinitas yang aktif pada hari dan jam saat ini akan muncul juga di agenda dashboard.
-
-## Laporan
-
-`Laporan` dipakai untuk melihat ringkasan produktivitas berdasarkan periode.
-
-Fungsi utamanya:
-
-- pilih `Tanggal acuan`,
-- pilih jenis laporan `Harian`, `Mingguan`, atau `Bulanan`,
-- melihat kartu ringkasan yang mengikuti filter aktif,
-- melihat grafik yang mengikuti filter aktif,
-- export CSV detail yang mengikuti filter aktif,
-- export Excel yang mengikuti filter aktif,
-- export PDF dalam mode `Ringkas + detail penting` atau `Semua data filter`.
-
-Grafik laporan yang tersedia:
-
-- `Pekerjaan Berdasarkan Status`,
-- `Aktivitas Berdasarkan Kategori`,
-- `Kegiatan`,
-- `Progress Pekerjaan`.
-
-Semua judul dan data grafik berubah mengikuti periode aktif.
-
-## Pengaturan
-
-`Pengaturan` dipakai untuk mengelola preferensi dan data pribadi.
-
-Fungsi utamanya:
-
-- ganti nama dashboard,
-- pilih tema `Terang`, `Gelap`, atau `Sistem`,
-- atur preferensi kategori aktivitas,
-- export backup JSON,
-- import backup JSON,
-- reset data,
-- buka halaman ubah password.
-
-Catatan penting:
-
-- `Import JSON`, `Reset data`, dan `Logout` selalu memakai konfirmasi,
-- `Reset data` mengosongkan pekerjaan, aktivitas, dan rutinitas lalu mengembalikan preferensi ke default.
-
-## Alur Penggunaan yang Disarankan
-
-1. Buka `Dashboard` untuk melihat kondisi hari ini.
-2. Kelola task di `Pekerjaan`.
-3. Catat agenda aktual di `Aktivitas Harian`.
-4. Atur kegiatan berulang di `Rutinitas`.
-5. Evaluasi hasil di `Laporan`.
-6. Simpan backup dan atur preferensi di `Pengaturan`.
-
-## Ringkasan Singkat
-
-- `Dashboard`: pusat ringkasan, agenda hari ini, dan deadline terdekat.
-- `Pekerjaan`: kelola task dan countdown deadline.
-- `Aktivitas Harian`: catat kegiatan harian.
-- `Rutinitas`: kelola kegiatan mingguan berulang.
-- `Laporan`: baca ringkasan dan export CSV.
-- `Pengaturan`: ubah preferensi, backup, reset data, dan ubah password.
+- Pada form perencanaan `Work` dan `Activities`, status `Dibatalkan` tidak ditampilkan sebagai opsi input awal. Status itu hanya muncul pada daftar item untuk penyesuaian setelah item dibuat.
+- Daftar `Work` dan `Activities` sekarang sama-sama memiliki quick action `Selesai` dan `Dibatalkan` dengan tampilan yang konsisten.
+- Panel `Activities need attention` sekarang menyediakan aksi `Selesai` dan `Dibatalkan` untuk aktivitas yang sudah lewat waktu. Saat tombol `View` ditekan dari toast, toast akan menghilang sementara sampai panel ditutup lagi.

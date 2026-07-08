@@ -14,6 +14,7 @@ FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV TZ=Asia/Jakarta
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SQLITE_PATH=/data/activity.sqlite
 ENV PORT=3000

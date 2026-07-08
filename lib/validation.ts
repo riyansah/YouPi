@@ -1,4 +1,4 @@
-import type { Activity, Routine, Task } from "@/lib/types";
+import type { Activity, Note, Routine, Task } from "@/lib/types";
 
 export type TaskFormInput = Pick<Task, "title" | "description" | "status" | "priority" | "startDate" | "deadline" | "startTime" | "endTime">;
 export type ActivityFormInput = Pick<
@@ -6,6 +6,7 @@ export type ActivityFormInput = Pick<
   "title" | "category" | "date" | "startTime" | "endTime" | "status" | "notes"
 >;
 export type RoutineFormInput = Pick<Routine, "title" | "days" | "startTime" | "endTime" | "priority" | "notes">;
+export type NoteFormInput = Pick<Note, "title" | "content" | "category" | "linkedType" | "linkedId" | "tags" | "isPinned">;
 
 export function validateTaskForm(input: TaskFormInput) {
   const errors: string[] = [];
@@ -25,11 +26,11 @@ export function validateTaskForm(input: TaskFormInput) {
   const hasStartTime = Boolean(input.startTime);
   const hasEndTime = Boolean(input.endTime);
 
-  if (hasStartTime !== hasEndTime) {
-    errors.push("Jam mulai dan jam selesai harus diisi bersamaan atau dikosongkan keduanya.");
+  if (hasStartTime && !hasEndTime) {
+    errors.push("Jam selesai harus diisi jika jam mulai diisi.");
   }
 
-  if (hasStartTime && hasEndTime && input.endTime! <= input.startTime!) {
+  if (hasEndTime && input.endTime! <= (input.startTime || "00:00")) {
     errors.push("Jam selesai harus lebih besar dari jam mulai.");
   }
 
@@ -63,6 +64,29 @@ export function validateRoutineForm(input: RoutineFormInput) {
 
   if (input.endTime <= input.startTime) {
     errors.push("Waktu selesai harus lebih besar dari waktu mulai.");
+  }
+
+  return errors;
+}
+
+
+export function validateNoteForm(input: NoteFormInput) {
+  const errors: string[] = [];
+
+  if (input.title.trim().length < 3) {
+    errors.push("Judul catatan minimal 3 karakter.");
+  }
+
+  if (input.content.trim().length < 5) {
+    errors.push("Isi catatan minimal 5 karakter.");
+  }
+
+  if ((input.linkedType && !input.linkedId) || (!input.linkedType && input.linkedId)) {
+    errors.push("Tipe link dan item link harus diisi bersamaan.");
+  }
+
+  if (input.tags.some((tag) => !tag.trim())) {
+    errors.push("Tag tidak boleh kosong.");
   }
 
   return errors;

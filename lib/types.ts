@@ -1,4 +1,4 @@
-export type TaskStatus = "Berjalan" | "Selesai" | "Tertunda" | "Dibatalkan";
+export type TaskStatus = "Akan Datang" | "Berjalan" | "Selesai" | "Tertunda" | "Dibatalkan";
 export type TaskPriority = "Rendah" | "Sedang" | "Tinggi";
 export type Weekday = "Senin" | "Selasa" | "Rabu" | "Kamis" | "Jumat" | "Sabtu" | "Minggu";
 
@@ -11,9 +11,19 @@ export type ActivityCategory =
   | "Project Pribadi"
   | "Lainnya";
 
-export type ActivityStatus = "Direncanakan" | "Berjalan" | "Selesai" | "Tertunda";
+export type ActivityStatus = "Akan Datang" | "Direncanakan" | "Berjalan" | "Selesai" | "Tertunda" | "Dibatalkan";
 export type ReportPeriod = "Harian" | "Mingguan" | "Bulanan";
 export type ThemePreference = "Terang" | "Gelap" | "Sistem";
+export type AppLanguage = "en" | "id";
+export type ScheduleSource = "work" | "activity" | "routine";
+export type ScheduleDisplayStatus = "upcoming" | "done" | "missed" | "cancelled";
+export type ScheduleViewMode = "today" | "week" | "month" | "agenda";
+export type ScheduleSourceFilter = "all" | ScheduleSource;
+export type ScheduleStatusFilter = "all" | Exclude<ScheduleDisplayStatus, "cancelled">;
+export type NoteCategory = "work" | "activity" | "routine" | "personal";
+export type NoteLinkedType = "work" | "activity" | "routine" | null;
+export type HistoryEventType = "created" | "updated" | "completed" | "missed" | "cancelled" | "deleted" | "pinned" | "unpinned";
+export type HistoryEntityType = "work" | "activity" | "routine" | "note";
 
 export interface Task {
   id: string;
@@ -55,14 +65,51 @@ export interface Routine {
   updatedAt: string;
 }
 
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  category: NoteCategory;
+  linkedType: NoteLinkedType;
+  linkedId: string | null;
+  tags: string[];
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DashboardSettings {
   dashboardName: string;
   theme: ThemePreference;
   preferredCategories: ActivityCategory[];
+  language: AppLanguage;
+  timeZone: string;
+}
+
+export interface HistoryEvent {
+  id: string;
+  eventType: HistoryEventType;
+  entityType: HistoryEntityType;
+  entityId: string;
+  title: string;
+  description: string;
+  metadata: string | null;
+  createdAt: string;
+}
+
+export interface HistoryLinkedItem {
+  exists: boolean;
+  href: string | null;
+  label: string | null;
+}
+
+export interface HistoryEventRecord extends HistoryEvent {
+  linkedItem: HistoryLinkedItem;
 }
 
 export interface TaskSummary {
   total: number;
+  upcoming: number;
   running: number;
   completed: number;
   pending: number;
@@ -78,7 +125,30 @@ export interface ActivitySummary {
   mostFrequentActivity: string;
 }
 
-export const taskStatuses: TaskStatus[] = ["Berjalan", "Selesai", "Tertunda", "Dibatalkan"];
+export interface ScheduleItem {
+  id: string;
+  source: ScheduleSource;
+  sourceId: string;
+  title: string;
+  category: string;
+  detailCategory: string | null;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  displayStatus: ScheduleDisplayStatus;
+  priority: TaskPriority | null;
+  reminder: string | null;
+  href: string;
+  sourceStatus: string | null;
+  deadline: string | null;
+  notes: string | null;
+  isAllDay: boolean;
+  sortStartTimestamp: number;
+  sortEndTimestamp: number;
+}
+
+export const taskStatuses: TaskStatus[] = ["Akan Datang", "Berjalan", "Selesai", "Tertunda", "Dibatalkan"];
+export const taskFormStatuses: TaskStatus[] = ["Akan Datang", "Berjalan", "Selesai", "Tertunda"];
 export const taskPriorities: TaskPriority[] = ["Rendah", "Sedang", "Tinggi"];
 export const weekdays: Weekday[] = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 export const activityCategories: ActivityCategory[] = [
@@ -90,4 +160,5 @@ export const activityCategories: ActivityCategory[] = [
   "Project Pribadi",
   "Lainnya"
 ];
-export const activityStatuses: ActivityStatus[] = ["Direncanakan", "Berjalan", "Selesai", "Tertunda"];
+export const activityStatuses: ActivityStatus[] = ["Akan Datang", "Direncanakan", "Berjalan", "Selesai", "Tertunda", "Dibatalkan"];
+export const activityFormStatuses: ActivityStatus[] = ["Akan Datang", "Direncanakan", "Berjalan", "Selesai", "Tertunda"];

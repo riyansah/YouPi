@@ -15,7 +15,8 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { Activity, Routine, Task } from "@/lib/types";
+import { tCategory, tChartTitle, tTaskStatus } from "@/lib/i18n";
+import type { Activity, AppLanguage, Routine, Task } from "@/lib/types";
 import {
   activityCategoryChartData,
   activityPerDayChartData,
@@ -51,22 +52,25 @@ function ChartFrame({
   );
 }
 
-export function TaskStatusChart({ tasks, title = "Pekerjaan Berdasarkan Status" }: { tasks: Task[]; title?: string }) {
-  const data = taskStatusChartData(tasks);
+export function TaskStatusChart({ tasks, title, maxLegendItems, language = "en", timeZone }: { tasks: Task[]; title?: string; maxLegendItems?: number; language?: AppLanguage; timeZone?: string }) {
+  const data = taskStatusChartData(tasks, Date.now(), timeZone).map((item) => ({ ...item, label: tTaskStatus(item.name as never, language) }));
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  const legendItems = data.map((item, index) => ({
-    ...item,
-    color: colors[index % colors.length],
-    percentage: total ? Math.round((item.value / total) * 100) : 0
-  }));
+  const legendItems = data
+    .map((item, index) => ({
+      ...item,
+      color: colors[index % colors.length],
+      percentage: total ? Math.round((item.value / total) * 100) : 0
+    }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .slice(0, maxLegendItems || data.length);
 
   return (
-    <ChartFrame title={title} contentClassName="mt-4 h-[30rem] sm:h-80">
+    <ChartFrame title={title || tChartTitle("taskStatus", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
       <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
         <div className="relative min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-              <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={86} paddingAngle={3}>
+              <Pie data={data} dataKey="value" nameKey="label" innerRadius={58} outerRadius={86} paddingAngle={3}>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={colors[index % colors.length]} />
                 ))}
@@ -77,20 +81,18 @@ export function TaskStatusChart({ tasks, title = "Pekerjaan Berdasarkan Status" 
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="text-center leading-none">
               <p className="text-2xl font-bold text-slate-950 dark:text-slate-50">{total}</p>
-              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Pekerjaan</p>
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{language === "id" ? "Pekerjaan" : "Work"}</p>
             </div>
           </div>
         </div>
-        <div className="grid gap-2 text-sm sm:grid-cols-2">
+        <div className="grid min-h-[3.5rem] content-start gap-2 text-sm sm:grid-cols-2">
           {legendItems.map((item) => (
             <div key={item.name} className="flex items-center justify-between gap-3 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
-                <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.name}</span>
+                <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
               </div>
-              <span className="shrink-0 font-semibold tabular-nums text-slate-950 dark:text-slate-50">
-                {item.value} ({item.percentage}%)
-              </span>
+              <span className="shrink-0 font-semibold tabular-nums text-slate-950 dark:text-slate-50">{item.value} ({item.percentage}%)</span>
             </div>
           ))}
         </div>
@@ -102,16 +104,18 @@ export function TaskStatusChart({ tasks, title = "Pekerjaan Berdasarkan Status" 
 export function ActivityPerDayChart({
   activities,
   data,
-  title = "Aktivitas Per Hari"
+  title,
+  language = "en"
 }: {
   activities?: Activity[];
   data?: Array<{ date: string; total: number }>;
   title?: string;
+  language?: AppLanguage;
 }) {
   const resolvedData = data || activityPerDayChartData(activities || []);
 
   return (
-    <ChartFrame title={title}>
+    <ChartFrame title={title || tChartTitle("activityPerDay", language)}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={resolvedData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
@@ -128,34 +132,42 @@ export function ActivityPerDayChart({
 export function DailyActivityChart({
   activities,
   routines,
-  title = "Kegiatan Per Hari"
+  title,
+  language = "en",
+  timeZone
 }: {
   activities: Activity[];
   routines: Routine[];
   title?: string;
+  language?: AppLanguage;
+  timeZone?: string;
 }) {
-  const data = dailyActivityChartData(activities, routines);
+  const data = dailyActivityChartData(activities, routines, undefined, timeZone);
 
   return (
-    <ChartFrame title={title}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-          <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-          <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-          <Bar dataKey="activities" name="Aktivitas" stackId="kegiatan" fill="#2563eb" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="routines" name="Rutinitas" stackId="kegiatan" fill="#0f766e" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-      <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-        <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
-          <span className="h-3 w-3 rounded-sm bg-blue-600" />
-          <span className="font-medium text-slate-700 dark:text-slate-200">Aktivitas</span>
+    <ChartFrame title={title || tChartTitle("dailyActivity", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
+      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
+        <div className="min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+              <Bar dataKey="activities" name={language === "id" ? "Aktivitas" : "Activities"} stackId="kegiatan" fill="#2563eb" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="routines" name={language === "id" ? "Rutinitas" : "Routines"} stackId="kegiatan" fill="#0f766e" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
-          <span className="h-3 w-3 rounded-sm bg-teal-700" />
-          <span className="font-medium text-slate-700 dark:text-slate-200">Rutinitas</span>
+        <div className="grid min-h-[3.5rem] content-start gap-2 text-sm sm:grid-cols-2">
+          <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+            <span className="h-3 w-3 rounded-sm bg-blue-600" />
+            <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Aktivitas" : "Activities"}</span>
+          </div>
+          <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+            <span className="h-3 w-3 rounded-sm bg-teal-700" />
+            <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Rutinitas" : "Routines"}</span>
+          </div>
         </div>
       </div>
     </ChartFrame>
@@ -164,14 +176,16 @@ export function DailyActivityChart({
 
 export function ActivityCategoryChart({
   activities,
-  title = "Aktivitas Berdasarkan Kategori",
-  maxItems
+  title,
+  maxItems,
+  language = "en"
 }: {
   activities: Activity[];
   title?: string;
   maxItems?: number;
+  language?: AppLanguage;
 }) {
-  const data = activityCategoryChartData(activities, maxItems);
+  const data = activityCategoryChartData(activities, maxItems).map((item) => ({ ...item, label: tCategory(item.name as never, language) }));
   const total = data.reduce((sum, item) => sum + item.value, 0);
   const legendItems = data.map((item, index) => ({
     ...item,
@@ -180,12 +194,12 @@ export function ActivityCategoryChart({
   }));
 
   return (
-    <ChartFrame title={title} contentClassName="mt-4 h-[30rem] sm:h-80">
+    <ChartFrame title={title || tChartTitle("activityCategory", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
       <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
         <div className="min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" outerRadius={96} label>
+              <Pie data={data} dataKey="value" nameKey="label" outerRadius={96} label>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={colors[index % colors.length]} />
                 ))}
@@ -199,11 +213,9 @@ export function ActivityCategoryChart({
             <div key={item.name} className="flex items-center justify-between gap-3 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
-                <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.name}</span>
+                <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
               </div>
-              <span className="shrink-0 font-semibold tabular-nums text-slate-950 dark:text-slate-50">
-                {item.value} ({item.percentage}%)
-              </span>
+              <span className="shrink-0 font-semibold tabular-nums text-slate-950 dark:text-slate-50">{item.value} ({item.percentage}%)</span>
             </div>
           ))}
         </div>
@@ -215,25 +227,39 @@ export function ActivityCategoryChart({
 export function WeeklyProgressChart({
   tasks,
   data,
-  title = "Progress Mingguan"
+  title,
+  language = "en",
+  timeZone
 }: {
   tasks?: Task[];
   data?: Array<{ date: string; completed: number }>;
   title?: string;
+  language?: AppLanguage;
+  timeZone?: string;
 }) {
-  const resolvedData = data || weeklyProgressData(tasks || []);
+  const resolvedData = data || weeklyProgressData(tasks || [], timeZone);
 
   return (
-    <ChartFrame title={title}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={resolvedData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-          <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-          <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-          <Line type="monotone" dataKey="completed" stroke="#0f766e" strokeWidth={3} dot={{ r: 4 }} />
-        </LineChart>
-      </ResponsiveContainer>
+    <ChartFrame title={title || tChartTitle("weeklyProgress", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
+      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
+        <div className="min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={resolvedData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+              <Line type="monotone" dataKey="completed" name={language === "id" ? "Pekerjaan selesai" : "Completed work"} stroke="#0f766e" strokeWidth={3} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex min-h-[3.5rem] items-start justify-center">
+          <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">
+            <span className="h-3 w-3 rounded-sm bg-teal-700" />
+            <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Pekerjaan selesai" : "Completed work"}</span>
+          </div>
+        </div>
+      </div>
     </ChartFrame>
   );
 }

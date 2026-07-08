@@ -7,6 +7,7 @@ cd "$ROOT_DIR"
 PORT="${PORT:-3000}"
 HOST="${HOST:-127.0.0.1}"
 MODE="${MODE:-start}"
+export TZ="${TZ:-Asia/Jakarta}"
 
 if [ -x "$ROOT_DIR/.tools/node/bin/npm" ]; then
   export PATH="$ROOT_DIR/.tools/node/bin:$PATH"
