@@ -2,6 +2,8 @@ FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
+RUN mkdir -p .tools/node/bin && ln -s "$(command -v node)" .tools/node/bin/node
+
 COPY package*.json ./
 RUN npm ci
 
