@@ -8,6 +8,7 @@ Panduan ini menjelaskan langkah demi langkah agar `YouPi` bisa online di VPS den
 - Caddy berjalan sebagai reverse proxy pada port `80` dan `443`.
 - HTTPS dibuat otomatis oleh Caddy selama domain sudah mengarah ke IP VPS.
 - Database SQLite disimpan di Docker volume agar data tetap ada walau container dibuat ulang.
+- Jika reverse proxy menimpa header IP client, set `TRUST_PROXY_HEADERS=true` agar rate limit memakai IP asli. Biarkan `false` jika proxy tidak dikonfigurasi untuk menimpa `X-Forwarded-For`/`X-Real-IP`.
 
 ## Yang Perlu Disiapkan
 

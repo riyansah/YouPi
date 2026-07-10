@@ -19,9 +19,43 @@ export interface Statement {
 export interface Database {
   exec: (sql: string) => void;
   prepare: (sql: string) => Statement;
+  close?: () => void;
 }
 
 const { DatabaseSync } = require("node:sqlite") as { DatabaseSync: new (path: string) => Database };
+
+function isMissingSqliteRow(row: Record<string, unknown> | undefined) {
+  if (!row) {
+    return false;
+  }
+
+  return Object.keys(row).length > 0 && Object.values(row).every((value) => value === null);
+}
+
+function openDatabase(path: string): Database {
+  const raw = new DatabaseSync(path);
+  const wrapped: Database = {
+    exec: (sql) => raw.exec(sql),
+    prepare: (sql) => {
+      const statement = raw.prepare(sql);
+
+      return {
+        get: (...values) => {
+          const row = statement.get(...values);
+          return isMissingSqliteRow(row) ? undefined : row;
+        },
+        all: (...values) => statement.all(...values),
+        run: (...values) => statement.run(...values)
+      };
+    }
+  };
+
+  if (raw.close) {
+    wrapped.close = () => raw.close?.();
+  }
+
+  return wrapped;
+}
 
 export interface DashboardData {
   tasks: Task[];
@@ -48,6 +82,7 @@ type ResourceItem = Task | Activity | Routine;
 type LinkedResourceType = Exclude<NoteLinkedType, null>;
 
 let database: Database | null = null;
+let databasePathInUse: string | null = null;
 
 function getDatabasePath() {
   return process.env.SQLITE_PATH || join(process.cwd(), "data", "activity.sqlite");
@@ -169,10 +204,18 @@ function logHistoryEvent(event: HistoryEvent) {
 }
 
 export function getDatabase() {
+  const databasePath = getDatabasePath();
+
+  if (database && databasePathInUse !== databasePath) {
+    database.close?.();
+    database = null;
+    databasePathInUse = null;
+  }
+
   if (!database) {
-    const databasePath = getDatabasePath();
     mkdirSync(dirname(databasePath), { recursive: true });
-    database = new DatabaseSync(databasePath);
+    database = openDatabase(databasePath);
+    databasePathInUse = databasePath;
     database.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,

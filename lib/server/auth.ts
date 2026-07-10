@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
+import { getClientIpFromRequest } from "@/lib/server/client-ip";
 import { getDatabase } from "@/lib/server/dashboard-db";
 import { getCurrentTimestampInTimeZone } from "@/lib/time";
 
@@ -277,8 +278,7 @@ function rateLimitConfig(action: RateLimitAction) {
 }
 
 export function getClientIp(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwardedFor || request.headers.get("x-real-ip") || "local";
+  return getClientIpFromRequest(request);
 }
 
 export function checkRateLimit(action: RateLimitAction, clientKey: string, now = Date.now()) {

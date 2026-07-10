@@ -12,7 +12,7 @@ The app stores data in SQLite, protects the dashboard behind login, and uses `As
 - npm
 - SQLite support through `node:sqlite`
 
-The project scripts use the repo-local Node runtime at `.tools/node/bin/node`, so validation commands stay consistent even if the system Node version is different.
+The project scripts use `scripts/node.sh`, which prefers the repo-local Node runtime at `.tools/node/bin/node` when available and otherwise requires Node.js 22.5+ from `PATH`.
 
 ## Quick Start
 
@@ -51,6 +51,8 @@ The detailed menu guide is in [docs/panduan-menu.md](docs/panduan-menu.md).
 
 ```bash
 SQLITE_PATH=./data/activity.sqlite
+# Only enable behind a trusted reverse proxy that overwrites client IP headers.
+TRUST_PROXY_HEADERS=false
 ```
 
 Settings can export and import JSON backups. A sample backup is available at [docs/sample-backup-project-manager-2026-07.json](docs/sample-backup-project-manager-2026-07.json).

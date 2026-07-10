@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getClientIpFromRequest } from "@/lib/server/client-ip";
 import { logger, sanitizeForLogging, type LogCategory, type LogLevel } from "@/lib/server/logger";
 
 interface ActorContext {
@@ -32,15 +33,10 @@ export function getOrCreateRequestId(request: NextRequest) {
   return request.headers.get("x-request-id") || randomUUID();
 }
 
-function getClientIpFromHeaders(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwardedFor || request.headers.get("x-real-ip") || "local";
-}
-
 function buildContext(request: NextRequest): RequestContextState {
   return {
     requestId: getOrCreateRequestId(request),
-    ipAddress: getClientIpFromHeaders(request),
+    ipAddress: getClientIpFromRequest(request),
     userAgent: request.headers.get("user-agent"),
     actor: defaultActor(),
     metadata: {}

@@ -3,15 +3,15 @@
   "version": "0.7.51",
   "private": true,
   "scripts": {
-    "dev": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/next/dist/bin/next dev",
+    "dev": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/next/dist/bin/next dev",
     "setup": "./launcher.sh",
-    "build": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/next/dist/bin/next build",
-    "start": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/next/dist/bin/next start",
-    "typecheck": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/typescript/bin/tsc --noEmit --project tsconfig.typecheck.json",
-    "test": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/tsx/dist/cli.mjs --test tests/*.test.ts",
+    "build": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/next/dist/bin/next build",
+    "start": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/next/dist/bin/next start",
+    "typecheck": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/typescript/bin/tsc --noEmit --project tsconfig.typecheck.json",
+    "test": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/tsx/dist/cli.mjs --test tests/*.test.ts",
     "prepare:commit": "npm run test && npm run lint && npm run typecheck && npm run build",
-    "lint": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/eslint/bin/eslint.js .",
-    "auth:reset": "TZ=Asia/Jakarta ./.tools/node/bin/node ./node_modules/tsx/dist/cli.mjs scripts/reset-auth.ts"
+    "lint": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/eslint/bin/eslint.js .",
+    "auth:reset": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/tsx/dist/cli.mjs scripts/reset-auth.ts"
   },
   "dependencies": {
     "html-to-image": "^1.11.13",

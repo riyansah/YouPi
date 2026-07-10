@@ -19,6 +19,8 @@ else
   exit 1
 fi
 
+"$ROOT_DIR/scripts/node.sh" -e "process.exit(0)"
+
 if [ ! -d "$ROOT_DIR/node_modules" ]; then
   echo "node_modules belum ada. Menjalankan npm install..."
   npm install

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { NextRequest } from "next/server";
+import { getClientIpFromRequest } from "../lib/server/client-ip";
 import { createLogger, logger, sanitizeForLogging } from "../lib/server/logger";
 import { parseJsonBody, setRequestActor, setRequestMetadata, withRequestContext } from "../lib/server/request-context";
 
@@ -107,6 +108,30 @@ test("sanitizeForLogging redacts common sensitive keys recursively", () => {
       name: "owner"
     }
   });
+});
+
+test("client IP resolver ignores proxy headers unless explicitly trusted", () => {
+  const previousTrustProxyHeaders = process.env.TRUST_PROXY_HEADERS;
+  const request = new NextRequest("http://127.0.0.1:3000/api/test", {
+    headers: {
+      "x-forwarded-for": "203.0.113.10, 10.0.0.2",
+      "x-real-ip": "203.0.113.20"
+    }
+  });
+
+  try {
+    delete process.env.TRUST_PROXY_HEADERS;
+    assert.equal(getClientIpFromRequest(request), "local");
+
+    process.env.TRUST_PROXY_HEADERS = "true";
+    assert.equal(getClientIpFromRequest(request), "203.0.113.10");
+  } finally {
+    if (previousTrustProxyHeaders === undefined) {
+      delete process.env.TRUST_PROXY_HEADERS;
+    } else {
+      process.env.TRUST_PROXY_HEADERS = previousTrustProxyHeaders;
+    }
+  }
 });
 
 test("request context adds request id, actor data, metadata, and logs unhandled errors", async () => {
