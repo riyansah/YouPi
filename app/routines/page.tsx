@@ -18,10 +18,25 @@ import { cn, formatRoutineDays, formatTimeRange, getEffectiveRoutineStatus, getW
 import { useNow } from "@/lib/use-now";
 import { validateRoutineForm } from "@/lib/validation";
 
-const pageSize = 10;
+const desktopPageSize = 10;
+const mobilePageSize = 5;
 const priorityStyles = { Rendah: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100", Sedang: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100", Tinggi: "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-100" };
 const statusStyles = { "Akan Datang": "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-100", Berjalan: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100" };
 const emptyRoutineForm = { title: "", days: [getWeekdayFromDate(todayDate())] as Weekday[], startTime: "07:00", endTime: "07:30", priority: "Sedang" as TaskPriority, notes: "" };
+
+function useResponsivePageSize() {
+  const [pageSize, setPageSize] = useState(desktopPageSize);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const update = () => setPageSize(mediaQuery.matches ? mobilePageSize : desktopPageSize);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  return pageSize;
+}
 
 function translateErrors(errors: string[], language: "en" | "id") {
   const messages = {
@@ -53,6 +68,8 @@ function RoutinesPageContent() {
   const composeQuery = searchParams.get("compose") === "1";
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formExpanded, setFormExpanded] = useState(false);
+  const pageSize = useResponsivePageSize();
   const [form, setForm] = useState(emptyRoutineForm);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const formSectionRef = useRef<HTMLElement | null>(null);
@@ -72,6 +89,8 @@ function RoutinesPageContent() {
     notes: language === "id" ? "Catatan" : "Notes",
     save: language === "id" ? "Simpan perubahan" : "Save changes",
     addItem: language === "id" ? "Tambah rutinitas" : "Add routine",
+    openForm: language === "id" ? "Tambah rutinitas" : "Add routine",
+    closeForm: language === "id" ? "Tutup form" : "Close form",
     empty: language === "id" ? "Belum ada rutinitas yang tersimpan." : "No saved routines yet.",
     deleteTitle: language === "id" ? "Hapus rutinitas?" : "Delete routine?",
     deleteLabel: language === "id" ? "Hapus" : "Delete",
@@ -92,7 +111,7 @@ function RoutinesPageContent() {
   }, [timeZone]);
 
   const orderedRoutines = useMemo(() => sortRoutines(routines), [routines]);
-  const paginatedRoutines = useMemo(() => paginateItems(orderedRoutines, currentPage, pageSize), [currentPage, orderedRoutines]);
+  const paginatedRoutines = useMemo(() => paginateItems(orderedRoutines, currentPage, pageSize), [currentPage, orderedRoutines, pageSize]);
   const linkedNotes = useMemo(() => editingId ? getLinkedNotes(notes, "routine", editingId) : [], [editingId, notes]);
 
   const fieldErrors = useMemo(() => ({
@@ -106,6 +125,7 @@ function RoutinesPageContent() {
   useEffect(() => {
     if (!composeQuery) return;
     resetForm();
+    setFormExpanded(true);
     window.requestAnimationFrame(() => {
       formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.setTimeout(() => titleInputRef.current?.focus(), 180);
@@ -125,12 +145,13 @@ function RoutinesPageContent() {
     const targetPage = Math.floor(targetIndex / pageSize) + 1;
     if (currentPage !== targetPage) { setCurrentPage(targetPage); return; }
     if (editingId !== routine.id) {
+      setFormExpanded(true);
       setEditingId(routine.id);
       setForm({ title: routine.title, days: routine.days, startTime: routine.startTime, endTime: routine.endTime, priority: routine.priority, notes: routine.notes });
       setFormErrors([]);
     }
     router.replace("/routines", { scroll: false });
-  }, [composeQuery, currentPage, editingId, orderedRoutines, router, selectedRoutineId]);
+  }, [composeQuery, currentPage, editingId, orderedRoutines, router, selectedRoutineId, pageSize]);
 
   function toggleDay(day: Weekday) {
     setForm((current) => ({ ...current, days: current.days.includes(day) ? current.days.filter((item) => item !== day) : [...current.days, day] }));
@@ -154,12 +175,14 @@ function RoutinesPageContent() {
       }
 
       resetForm();
+      setFormExpanded(false);
     } catch (error) {
       setFormErrors([error instanceof Error ? error.message : "Failed to save routine."]);
     }
   }
 
   function handleEdit(routine: Routine) {
+    setFormExpanded(true);
     setEditingId(routine.id);
     setForm({ title: routine.title, days: routine.days, startTime: routine.startTime, endTime: routine.endTime, priority: routine.priority, notes: routine.notes });
     setFormErrors([]);
@@ -172,7 +195,7 @@ function RoutinesPageContent() {
 
     const affectedNoteIds = notes.filter((note) => note.linkedType === "routine" && note.linkedId === id).map((note) => note.id);
     await deleteRoutine(id);
-    if (editingId === id) resetForm();
+    if (editingId === id) { resetForm(); setFormExpanded(false); }
     if (routine) {
       showToast({ message: text.added + " \"" + routine.title + "\" " + text.deletedTail, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { void createRoutine(routine).then(() => Promise.all(affectedNoteIds.map((noteId) => updateNote(noteId, { linkedType: "routine", linkedId: id })))); } });
     } else {
@@ -184,7 +207,11 @@ function RoutinesPageContent() {
     <div className="space-y-6">
       <PageHeader eyebrow={text.eyebrow} title={text.title} description={text.description} language={language} timeZone={timeZone} />
 
-      <section ref={formSectionRef} className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <button type="button" onClick={() => setFormExpanded((current) => !current)} className="inline-flex w-full items-center justify-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 md:hidden">
+        <Plus className="h-4 w-4" />{formExpanded || editingId ? text.closeForm : text.openForm}
+      </button>
+
+      <section ref={formSectionRef} className={cn("rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5", formExpanded || editingId ? "block" : "hidden md:block")}>
         <div className="mb-4 flex items-center gap-2"><Plus className="h-5 w-5 text-teal-700 dark:text-teal-300" /><h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{editingId ? text.edit : text.add}</h2></div>
                 <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-1 lg:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.titleLabel}</span><input ref={titleInputRef} required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={language === "id" ? "Tulis nama rutinitas" : "Enter routine title"} className={getFieldClassName({ filled: Boolean(form.title), error: Boolean(fieldErrors.title) })} />{fieldErrors.title ? <p className={getFieldMessageClassName("error")}>{fieldErrors.title}</p> : null}</label>

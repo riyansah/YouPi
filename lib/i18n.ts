@@ -131,7 +131,8 @@ export function tPeriod(value: ReportPeriod, language: AppLanguage) {
   const labels: Record<ReportPeriod, { en: string; id: string }> = {
     Harian: { en: "Daily", id: "Harian" },
     Mingguan: { en: "Weekly", id: "Mingguan" },
-    Bulanan: { en: "Monthly", id: "Bulanan" }
+    Bulanan: { en: "Monthly", id: "Bulanan" },
+    Kustom: { en: "Custom", id: "Kustom" }
   };
 
   return labels[value][language];
@@ -141,19 +142,16 @@ export function tReportPeriodLabel(value: ReportPeriod, language: AppLanguage) {
   const labels: Record<ReportPeriod, { en: string; id: string }> = {
     Harian: { en: "Today", id: "Hari Ini" },
     Mingguan: { en: "This Week", id: "Minggu Ini" },
-    Bulanan: { en: "This Month", id: "Bulan Ini" }
+    Bulanan: { en: "This Month", id: "Bulan Ini" },
+    Kustom: { en: "Custom Range", id: "Rentang Kustom" }
   };
 
   return labels[value][language];
 }
 
-export function tActivityFilter(value: "Semua" | "Preferensi" | ActivityCategory, language: AppLanguage) {
+export function tActivityFilter(value: "Semua" | ActivityCategory, language: AppLanguage) {
   if (value === "Semua") {
     return language === "id" ? "Semua" : "All";
-  }
-
-  if (value === "Preferensi") {
-    return language === "id" ? "Preferensi" : "Preferences";
   }
 
   return tCategory(value, language);

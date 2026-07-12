@@ -61,7 +61,8 @@ function addHeader(doc: jsPDF, model: ReportExportModel, mode: ReportPdfMode) {
   doc.text("Laporan Produktivitas", page.marginX, 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`${model.period} - ${model.periodLabel} | Tanggal acuan ${formatDate(model.selectedDate, "id", model.timeZone)}`, page.marginX, 24);
+  const headerLabel = model.period === "Kustom" ? model.dateRangeLabel : formatDate(model.selectedDate, "id", model.timeZone);
+  doc.text(`${model.period} - ${headerLabel}`, page.marginX, 24);
   doc.text(`Mode: ${mode}`, page.marginX, 30);
 
   doc.setTextColor(71, 85, 105);
@@ -99,7 +100,7 @@ function addMetrics(doc: jsPDF, model: ReportExportModel, startY: number) {
 }
 
 function addInsights(doc: jsPDF, model: ReportExportModel, startY: number) {
-  let y = addSectionTitle(doc, `Ringkasan ${model.periodLabel}`, startY);
+  let y = addSectionTitle(doc, `Ringkasan ${model.period === "Kustom" ? model.dateRangeLabel : model.periodLabel}`, startY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(51, 65, 85);

@@ -64,7 +64,42 @@ export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange, langua
 
   return (
     <div className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="overflow-x-auto">
+      <div className="space-y-3 p-3 md:hidden">
+        {tasks.map((task) => {
+          const effectiveStatus = getEffectiveTaskStatus(task, now ?? Date.now(), timeZone);
+          const isActiveTask = !isTerminalTaskStatus(effectiveStatus);
+          const countdown = isActiveTask && now !== null ? getTaskCountdownState(task, now, timeZone, language) : null;
+          const timeRange = task.endTime ? formatTimeRange(task.startTime || "00:00", task.endTime) : "-";
+
+          return (
+            <article key={task.id} className="rounded border border-slate-200 p-3 dark:border-slate-700">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-950 dark:text-slate-50">{task.title}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">{task.description}</p>
+                </div>
+                <span className={getSemanticChipClassName(priorityStyles[task.priority])}>{tPriority(task.priority, language)}</span>
+              </div>
+              <div className="mt-3 grid gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <p>{formatDate(task.startDate, language, timeZone)} {text.until} {formatDate(task.deadline, language, timeZone)}</p>
+                <p>{text.time}: {timeRange}</p>
+                {isActiveTask ? now === null ? <p className="font-medium text-slate-500 dark:text-slate-400">{text.loading}</p> : countdown ? <div className={cn("inline-flex max-w-full items-center gap-1", getCountdownChipClassName(countdown.mode === "upcoming" ? countdownToneStyles.upcoming : countdownToneStyles[countdown.tone]))} aria-label={`${countdown.label}: ${countdown.fullLabel}`} title={`${countdown.label}: ${countdown.fullLabel}`}><span className="font-bold">{countdown.label}</span><span className="truncate">{countdown.displayLabel}</span></div> : null : null}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <select value={effectiveStatus} onChange={(event) => onStatusChange(task.id, event.target.value as TaskStatus)} className={cn("rounded border-0 px-2 py-2 text-xs font-semibold", getSemanticChipClassName(statusStyles[effectiveStatus]))}>
+                  {taskStatuses.map((status) => <option key={status} value={status}>{tTaskStatus(status, language)}</option>)}
+                </select>
+                {effectiveStatus !== "Selesai" && effectiveStatus !== "Dibatalkan" ? (
+                  <QuickStatusActions itemTitle={task.title} language={language} onComplete={() => onStatusChange(task.id, "Selesai")} onCancel={() => onStatusChange(task.id, "Dibatalkan")} />
+                ) : null}
+                <button type="button" onClick={() => onEdit(task)} className={getIconButtonClassName()} aria-label={`${text.edit} ${task.title}`}><Edit2 className="h-4 w-4" /></button>
+                <button type="button" onClick={() => onDelete(task.id)} className={getIconButtonClassName("danger")} aria-label={`${text.delete} ${task.title}`}><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
           <thead className="bg-slate-50 dark:bg-slate-800/80">
             <tr>

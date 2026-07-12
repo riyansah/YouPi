@@ -17,11 +17,12 @@ import { useDashboardStore } from "@/lib/dashboard-store";
 import { getLinkedNotes } from "@/lib/notes";
 import type { Activity, ActivityCategory, ActivityStatus } from "@/lib/types";
 import { activityCategories, activityFormStatuses } from "@/lib/types";
-import { getEffectiveActivityStatus, normalizeActivityStatusForTime, paginateItems, todayDate } from "@/lib/utils";
+import { cn, getEffectiveActivityStatus, normalizeActivityStatusForTime, paginateItems, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import { validateActivityForm } from "@/lib/validation";
 
-const pageSize = 10;
+const desktopPageSize = 10;
+const mobilePageSize = 5;
 
 const emptyActivityForm = {
   title: "",
@@ -32,6 +33,20 @@ const emptyActivityForm = {
   status: "Direncanakan" as ActivityStatus,
   notes: ""
 };
+
+function useResponsivePageSize() {
+  const [pageSize, setPageSize] = useState(desktopPageSize);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const update = () => setPageSize(mediaQuery.matches ? mobilePageSize : desktopPageSize);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  return pageSize;
+}
 
 function getDateFilterParam(value: string | null) {
   return value && value.length === 10 && value[4] === "-" && value[7] === "-" ? value : null;
@@ -68,10 +83,12 @@ function ActivitiesPageContent() {
   const composeQuery = searchParams.get("compose") === "1";
   const categoryQuery = getActivityCategoryFilterParam(searchParams.get("category"));
   const dateQuery = getDateFilterParam(searchParams.get("date"));
-  const [categoryFilter, setCategoryFilter] = useState<ActivityCategoryFilter>(() => categoryQuery || (settings.preferredCategories.length ? "Preferensi" : "Semua"));
+  const [categoryFilter, setCategoryFilter] = useState<ActivityCategoryFilter>(() => categoryQuery || "Semua");
   const [dateFilter, setDateFilter] = useState(() => dateQuery || todayDate(timeZone));
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formExpanded, setFormExpanded] = useState(false);
+  const pageSize = useResponsivePageSize();
   const [form, setForm] = useState(emptyActivityForm);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const formSectionRef = useRef<HTMLElement | null>(null);
@@ -93,9 +110,10 @@ function ActivitiesPageContent() {
     save: language === "id" ? "Simpan perubahan" : "Save changes",
     addItem: language === "id" ? "Tambah aktivitas" : "Add activity",
     reset: "Reset",
+    openForm: language === "id" ? "Tambah aktivitas" : "Add activity",
+    closeForm: language === "id" ? "Tutup form" : "Close form",
     filterDate: language === "id" ? "Filter tanggal" : "Date filter",
     filterCategory: language === "id" ? "Filter kategori" : "Category filter",
-    prefHelp: settings.preferredCategories.length ? (language === "id" ? `Menampilkan kategori preferensi: ${settings.preferredCategories.map((item) => tCategory(item, language)).join(", ")}. Filter tanggal tetap berlaku.` : `Showing preferred categories: ${settings.preferredCategories.map((item) => tCategory(item, language)).join(", ")}. The date filter still applies.`) : (language === "id" ? "Belum ada kategori preferensi dipilih di Pengaturan." : "No preferred categories are selected in Settings yet."),
     added: language === "id" ? "Aktivitas" : "Activity",
     addedTail: language === "id" ? "berhasil ditambahkan." : "was added successfully.",
     deletedTail: language === "id" ? "dihapus." : "was deleted.",
@@ -114,12 +132,12 @@ function ActivitiesPageContent() {
   }, [timeZone]);
 
   const filteredActivities = useMemo(() => activities.filter((activity) => {
-    const categoryMatch = matchesActivityCategoryFilter(activity.category, categoryFilter, settings.preferredCategories);
+    const categoryMatch = matchesActivityCategoryFilter(activity.category, categoryFilter);
     const dateMatch = !dateFilter || activity.date === dateFilter;
     return categoryMatch && dateMatch;
-  }).sort((a, b) => a.startTime.localeCompare(b.startTime)), [activities, categoryFilter, dateFilter, settings.preferredCategories]);
+  }).sort((a, b) => a.startTime.localeCompare(b.startTime)), [activities, categoryFilter, dateFilter]);
 
-  const paginatedActivities = useMemo(() => paginateItems(filteredActivities, currentPage, pageSize), [currentPage, filteredActivities]);
+  const paginatedActivities = useMemo(() => paginateItems(filteredActivities, currentPage, pageSize), [currentPage, filteredActivities, pageSize]);
   const linkedNotes = useMemo(() => editingId ? getLinkedNotes(notes, "activity", editingId) : [], [editingId, notes]);
 
   const fieldErrors = useMemo(() => ({
@@ -139,6 +157,7 @@ function ActivitiesPageContent() {
   useEffect(() => {
     if (!composeQuery) return;
     resetForm();
+    setFormExpanded(true);
     window.requestAnimationFrame(() => {
       formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.setTimeout(() => titleInputRef.current?.focus(), 180);
@@ -162,12 +181,13 @@ function ActivitiesPageContent() {
     const targetPage = Math.floor(targetIndex / pageSize) + 1;
     if (currentPage !== targetPage) { setCurrentPage(targetPage); return; }
     if (editingId !== activity.id) {
+      setFormExpanded(true);
       setEditingId(activity.id);
       setForm({ title: activity.title, category: activity.category, date: activity.date, startTime: activity.startTime, endTime: activity.endTime, status: getEffectiveActivityStatus(activity, now ?? Date.now(), timeZone), notes: activity.notes });
       setFormErrors([]);
     }
     router.replace("/activities", { scroll: false });
-  }, [activities, categoryFilter, composeQuery, currentPage, dateFilter, editingId, now, router, selectedActivityId, timeZone]);
+  }, [activities, categoryFilter, composeQuery, currentPage, dateFilter, editingId, now, router, selectedActivityId, timeZone, pageSize]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -188,12 +208,14 @@ function ActivitiesPageContent() {
       }
 
       resetForm();
+      setFormExpanded(false);
     } catch (error) {
       setFormErrors([error instanceof Error ? error.message : "Failed to save activity."]);
     }
   }
 
   function handleEdit(activity: Activity) {
+    setFormExpanded(true);
     setEditingId(activity.id);
     setForm({ title: activity.title, category: activity.category, date: activity.date, startTime: activity.startTime, endTime: activity.endTime, status: getEffectiveActivityStatus(activity, now ?? Date.now(), timeZone), notes: activity.notes });
   }
@@ -205,7 +227,7 @@ function ActivitiesPageContent() {
 
     const affectedNoteIds = notes.filter((note) => note.linkedType === "activity" && note.linkedId === id).map((note) => note.id);
     await deleteActivity(id);
-    if (editingId === id) resetForm();
+    if (editingId === id) { resetForm(); setFormExpanded(false); }
     if (activity) {
       showToast({ message: text.added + " \"" + activity.title + "\" " + text.deletedTail, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { void createActivity(activity).then(() => Promise.all(affectedNoteIds.map((noteId) => updateNote(noteId, { linkedType: "activity", linkedId: id })))); } });
     } else {
@@ -227,7 +249,11 @@ function ActivitiesPageContent() {
     <div className="space-y-6">
       <PageHeader eyebrow={text.eyebrow} title={text.title} description={text.description} language={language} timeZone={timeZone} />
 
-      <section ref={formSectionRef} className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <button type="button" onClick={() => setFormExpanded((current) => !current)} className="inline-flex w-full items-center justify-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 md:hidden">
+        <Plus className="h-4 w-4" />{formExpanded || editingId ? text.closeForm : text.openForm}
+      </button>
+
+      <section ref={formSectionRef} className={cn("rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5", formExpanded || editingId ? "block" : "hidden md:block")}>
         <div className="mb-4 flex items-center gap-2"><Plus className="h-5 w-5 text-teal-700 dark:text-teal-300" /><h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{editingId ? text.edit : text.add}</h2></div>
                 <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-1"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.titleLabel}</span><input ref={titleInputRef} required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={language === "id" ? "Tulis nama aktivitas" : "Enter activity title"} className={getFieldClassName({ filled: Boolean(form.title), error: Boolean(fieldErrors.title) })} />
@@ -245,7 +271,7 @@ function ActivitiesPageContent() {
 
       <section className="flex flex-col gap-3 rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row">
         <label className="space-y-1"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.filterDate}</span><input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className={getFieldClassName({ filled: Boolean(dateFilter) })} /></label>
-        <label className="space-y-1"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.filterCategory}</span><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as ActivityCategoryFilter)} className={getFieldClassName({ filled: Boolean(categoryFilter) })}><option value="Preferensi">{tActivityFilter("Preferensi", language)}</option><option value="Semua">{tActivityFilter("Semua", language)}</option>{activityCategories.map((category) => <option key={category} value={category}>{tCategory(category, language)}</option>)}</select>{categoryFilter === "Preferensi" ? <p className="text-xs text-slate-500 dark:text-slate-400">{text.prefHelp}</p> : null}</label>
+        <label className="space-y-1"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.filterCategory}</span><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as ActivityCategoryFilter)} className={getFieldClassName({ filled: Boolean(categoryFilter) })}><option value="Semua">{tActivityFilter("Semua", language)}</option>{activityCategories.map((category) => <option key={category} value={category}>{tCategory(category, language)}</option>)}</select></label>
       </section>
 
       <ActivityList activities={paginatedActivities.items} now={now} onEdit={handleEdit} onDelete={handleDelete} onStatusChange={handleStatusChange} language={language} />

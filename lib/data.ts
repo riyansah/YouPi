@@ -410,7 +410,6 @@ export const defaultRoutines: Routine[] = [
 export const defaultSettings: DashboardSettings = {
   dashboardName: "YouPi Dashboard",
   theme: "Terang",
-  preferredCategories: ["Kerja", "Belajar", "Project Pribadi"],
   language: "en",
   timeZone: APP_DEFAULT_TIME_ZONE
 };

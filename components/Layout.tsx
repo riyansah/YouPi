@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BriefcaseBusiness, CalendarDays, Menu, Plus, Repeat2, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Menu, NotebookPen, Plus, Repeat2, X } from "lucide-react";
 import { ActivityOverdueNotifier } from "@/components/ActivityOverdueNotifier";
 import { AppFeedbackProvider, useAppFeedback } from "@/components/AppFeedback";
 import { Sidebar } from "@/components/Sidebar";
@@ -21,7 +21,8 @@ function quickActions(language: "en" | "id") {
   return [
     { href: "/tasks", label: language === "id" ? "Tambah Pekerjaan" : "Add Work", icon: BriefcaseBusiness },
     { href: "/activities", label: language === "id" ? "Tambah Aktivitas" : "Add Activity", icon: CalendarDays },
-    { href: "/routines", label: language === "id" ? "Tambah Rutinitas" : "Add Routine", icon: Repeat2 }
+    { href: "/routines", label: language === "id" ? "Tambah Rutinitas" : "Add Routine", icon: Repeat2 },
+    { href: "/notes", label: language === "id" ? "Tambah Catatan" : "Add Notes", icon: NotebookPen }
   ] as const;
 }
 
@@ -92,6 +93,81 @@ function GlobalQuickActions() {
   );
 }
 
+const idleLogoutMs = 15 * 60 * 1000;
+const idleHeartbeatMs = 60 * 1000;
+
+function IdleLogoutController() {
+  const { settings } = useDashboardStore();
+  const lastActivityRef = useRef(Date.now());
+  const lastHeartbeatRef = useRef(0);
+  const loggingOutRef = useRef(false);
+
+  useEffect(() => {
+    let timeoutId: number | null = null;
+
+    function redirectToLogin() {
+      window.location.href = "/login?reason=idle";
+    }
+
+    async function logoutForIdle() {
+      if (loggingOutRef.current) {
+        return;
+      }
+
+      loggingOutRef.current = true;
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+      redirectToLogin();
+    }
+
+    function scheduleLogout() {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+
+      const remaining = Math.max(0, idleLogoutMs - (Date.now() - lastActivityRef.current));
+      timeoutId = window.setTimeout(() => {
+        void logoutForIdle();
+      }, remaining);
+    }
+
+    function heartbeat(force = false) {
+      const now = Date.now();
+      if (!force && now - lastHeartbeatRef.current < idleHeartbeatMs) {
+        return;
+      }
+
+      lastHeartbeatRef.current = now;
+      void fetch("/api/auth/status", { method: "GET", cache: "no-store" }).then((response) => {
+        if (response.status === 401) {
+          redirectToLogin();
+        }
+      }).catch(() => null);
+    }
+
+    function markActive() {
+      lastActivityRef.current = Date.now();
+      scheduleLogout();
+      heartbeat();
+    }
+
+    const events = ["click", "keydown", "pointerdown", "scroll", "touchstart"] as const;
+    events.forEach((eventName) => window.addEventListener(eventName, markActive, { passive: true }));
+    document.addEventListener("visibilitychange", markActive);
+    scheduleLogout();
+    heartbeat(true);
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      events.forEach((eventName) => window.removeEventListener(eventName, markActive));
+      document.removeEventListener("visibilitychange", markActive);
+    };
+  }, [settings.language]);
+
+  return null;
+}
+
 function AuthenticatedShell({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { settings } = useDashboardStore();
@@ -118,6 +194,7 @@ function AuthenticatedShell({ children }: LayoutProps) {
           </Link>
         </header>
         <ActivityOverdueNotifier />
+        <IdleLogoutController />
         <GlobalQuickActions />
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
       </div>

@@ -8,7 +8,6 @@ import {
   taskStatuses,
   weekdays,
   type Activity,
-  type ActivityCategory,
   type AppLanguage,
   type DashboardSettings,
   type Routine,
@@ -55,7 +54,7 @@ function requiredString(value: unknown) {
 const taskFields = ["id", "title", "description", "status", "priority", "startDate", "deadline", "startTime", "endTime", "completedAt", "createdAt", "updatedAt"] as const;
 const activityFields = ["id", "title", "category", "date", "startTime", "endTime", "status", "notes", "createdAt", "updatedAt"] as const;
 const routineFields = ["id", "title", "days", "startTime", "endTime", "priority", "notes", "createdAt", "updatedAt"] as const;
-const settingsFields = ["dashboardName", "theme", "preferredCategories", "language", "timeZone"] as const;
+const settingsFields = ["dashboardName", "theme", "language", "timeZone"] as const;
 
 export function parseCreateTask(value: Record<string, unknown>): ParseResult<Task> {
   if (!hasOnlyFields(value, taskFields)) {
@@ -337,10 +336,6 @@ export function parsePatchSettings(value: Record<string, unknown>, current: Dash
   if ("theme" in value) {
     if (!oneOf(["Terang", "Gelap", "Sistem"] as const, value.theme)) return { ok: false, error: invalidPayload };
     patch.theme = value.theme as ThemePreference;
-  }
-  if ("preferredCategories" in value) {
-    if (!Array.isArray(value.preferredCategories) || !value.preferredCategories.every((category) => oneOf(activityCategories, category))) return { ok: false, error: invalidPayload };
-    patch.preferredCategories = value.preferredCategories as ActivityCategory[];
   }
   if ("language" in value) {
     if (value.language !== "en" && value.language !== "id") return { ok: false, error: invalidPayload };

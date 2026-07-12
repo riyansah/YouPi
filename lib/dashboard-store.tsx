@@ -112,7 +112,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     const response = await fetch(url, init);
 
     if (response.status === 401) {
-      window.location.href = "/login";
+      window.location.href = "/login?reason=idle";
       throw new Error("Unauthorized");
     }
 

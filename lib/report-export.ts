@@ -4,6 +4,7 @@ import {
   activityCategoryChartData,
   filterByReportPeriod,
   filterTasksByReportPeriod,
+  getReportDateRange,
   formatDate,
   getEffectiveActivityStatus,
   getEffectiveTaskStatus,
@@ -57,6 +58,9 @@ export interface ReportExportModel {
   period: ReportPeriod;
   periodLabel: string;
   selectedDate: string;
+  rangeFrom: string;
+  rangeTo: string;
+  dateRangeLabel: string;
   currentDate: string;
   generatedAt: string;
   timeZone: string;
@@ -80,6 +84,8 @@ interface BuildReportExportModelInput {
   activities: Activity[];
   selectedDate: string;
   period: ReportPeriod;
+  rangeFrom?: string | null;
+  rangeTo?: string | null;
   currentDate?: string;
   generatedAt?: string;
   timeZone?: string;
@@ -174,13 +180,19 @@ export function buildReportExportModel({
   activities,
   selectedDate,
   period,
+  rangeFrom,
+  rangeTo,
   currentDate,
   generatedAt = getCurrentTimestampInTimeZone(),
   timeZone = APP_DEFAULT_TIME_ZONE
 }: BuildReportExportModelInput): ReportExportModel {
   const resolvedCurrentDate = currentDate || todayDate(timeZone);
-  const filteredTasks = sortTasksForReport(filterTasksByReportPeriod(tasks, selectedDate, period, timeZone));
-  const filteredActivities = sortActivitiesForReport(filterByReportPeriod(activities, selectedDate, period));
+  const reportRange = getReportDateRange(selectedDate, period, rangeFrom, rangeTo);
+  const dateRangeLabel = reportRange.from === reportRange.to
+    ? formatDate(reportRange.from, "id", timeZone)
+    : `${formatDate(reportRange.from, "id", timeZone)} - ${formatDate(reportRange.to, "id", timeZone)}`;
+  const filteredTasks = sortTasksForReport(filterTasksByReportPeriod(tasks, selectedDate, period, timeZone, reportRange.from, reportRange.to));
+  const filteredActivities = sortActivitiesForReport(filterByReportPeriod(activities, selectedDate, period, timeZone, reportRange.from, reportRange.to));
   const taskSummary = summarizeTasks(filteredTasks, resolvedCurrentDate, timeZone);
   const activitySummary = summarizeActivities(filteredActivities, timeZone, resolvedCurrentDate);
   const overdueTasks = filteredTasks.filter((task) => {
@@ -193,6 +205,9 @@ export function buildReportExportModel({
     period,
     periodLabel,
     selectedDate,
+    rangeFrom: reportRange.from,
+    rangeTo: reportRange.to,
+    dateRangeLabel,
     currentDate: resolvedCurrentDate,
     generatedAt,
     timeZone,
@@ -205,8 +220,8 @@ export function buildReportExportModel({
     activitySummary,
     taskStatusSeries: taskStatusChartData(filteredTasks, resolvedCurrentDate, timeZone),
     categorySeries: activityCategoryChartData(filteredActivities, 4),
-    activitySeries: reportActivityChartData(filteredActivities, selectedDate, period, timeZone),
-    taskProgressSeries: reportTaskProgressChartData(tasks, selectedDate, period, timeZone),
+    activitySeries: reportActivityChartData(filteredActivities, selectedDate, period, timeZone, reportRange.from, reportRange.to),
+    taskProgressSeries: reportTaskProgressChartData(tasks, selectedDate, period, timeZone, reportRange.from, reportRange.to),
     metrics: [
       { label: "Total pekerjaan", value: taskSummary.total },
       { label: "Pekerjaan akan datang", value: taskSummary.upcoming },
@@ -220,7 +235,9 @@ export function buildReportExportModel({
       { label: "Lewat deadline", value: overdueTasks.length }
     ],
     insights: [
-      `Pada ${periodLabel.toLowerCase()} dengan tanggal acuan ${formatDate(selectedDate, "id", timeZone)}, ada ${taskSummary.completed} pekerjaan selesai dari ${taskSummary.total} pekerjaan.`,
+      period === "Kustom"
+        ? `Pada rentang ${dateRangeLabel}, ada ${taskSummary.completed} pekerjaan selesai dari ${taskSummary.total} pekerjaan.`
+        : `Pada ${periodLabel.toLowerCase()} dengan tanggal acuan ${formatDate(selectedDate, "id", timeZone)}, ada ${taskSummary.completed} pekerjaan selesai dari ${taskSummary.total} pekerjaan.`,
       `Tingkat penyelesaian pekerjaan berada di ${taskSummary.completionRate}% dengan ${taskSummary.upcoming} pekerjaan akan datang dan ${overdueTasks.length} pekerjaan melewati deadline.`,
       `Aktivitas tercatat berjumlah ${activitySummary.total}; kategori dominan adalah ${activitySummary.dominantCategory} dan aktivitas paling sering adalah ${activitySummary.mostFrequentActivity}.`
     ]
@@ -232,6 +249,8 @@ export function buildReportCsvRows(model: ReportExportModel): ReportCsvRow[] {
     reportCsvRow({ section: "metadata", type: "period", label: "Periode", value: model.period }),
     reportCsvRow({ section: "metadata", type: "period_label", label: "Label periode", value: model.periodLabel }),
     reportCsvRow({ section: "metadata", type: "selected_date", label: "Tanggal acuan", value: model.selectedDate }),
+    reportCsvRow({ section: "metadata", type: "range_from", label: "Tanggal mulai", value: model.rangeFrom }),
+    reportCsvRow({ section: "metadata", type: "range_to", label: "Tanggal selesai", value: model.rangeTo }),
     reportCsvRow({ section: "metadata", type: "generated_at", label: "Generated at", value: model.generatedAt })
   ];
 
@@ -312,6 +331,8 @@ export function buildReportExcelSheets(model: ReportExportModel): ReportExcelShe
         ["Metadata", "Periode", model.period],
         ["Metadata", "Label periode", model.periodLabel],
         ["Metadata", "Tanggal acuan", model.selectedDate],
+        ["Metadata", "Tanggal mulai", model.rangeFrom],
+        ["Metadata", "Tanggal selesai", model.rangeTo],
         ["Metadata", "Generated at", model.generatedAt],
         ...model.metrics.map((metric) => ["Metric", metric.label, metric.value] as ReportExcelCell[]),
         ...model.insights.map((insight, index) => ["Insight", `Insight ${index + 1}`, insight] as ReportExcelCell[])
@@ -364,16 +385,24 @@ export function buildReportExcelSheets(model: ReportExportModel): ReportExcelShe
   ];
 }
 
+function getReportFilenameDateSegment(model: ReportExportModel) {
+  if (model.period === "Kustom") {
+    return `${model.rangeFrom || "no-date"}-to-${model.rangeTo || "no-date"}`;
+  }
+
+  return model.selectedDate || "no-date";
+}
+
 export function getReportPdfFilename(model: ReportExportModel, mode: ReportPdfMode) {
   const suffix = mode === "full" ? "full" : "summary";
 
-  return `productivity-report-${model.period.toLowerCase()}-${model.selectedDate}-${suffix}.pdf`;
+  return `productivity-report-${model.period.toLowerCase()}-${getReportFilenameDateSegment(model)}-${suffix}.pdf`;
 }
 
 export function getReportCsvFilename(model: ReportExportModel) {
-  return `productivity-report-${model.period.toLowerCase()}-${model.selectedDate}-detail.csv`;
+  return `productivity-report-${model.period.toLowerCase()}-${getReportFilenameDateSegment(model)}-detail.csv`;
 }
 
 export function getReportExcelFilename(model: ReportExportModel) {
-  return `productivity-report-${model.period.toLowerCase()}-${model.selectedDate}.xls`;
+  return `productivity-report-${model.period.toLowerCase()}-${getReportFilenameDateSegment(model)}.xls`;
 }

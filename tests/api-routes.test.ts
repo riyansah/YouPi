@@ -90,6 +90,11 @@ test("authenticated REST API supports resources, read-only menus, backup, and re
     assert.equal((await json<{ taskSummary: { total: number } }>(await dashboard.GET(req("/api/dashboard")))).taskSummary.total, 1);
     assert.equal((await json<{ items: unknown[] }>(await schedule.GET(req("/api/schedule?view=week&anchorDate=2026-07-08")))).items.length > 0, true);
     assert.equal((await json<{ filteredTasks: unknown[] }>(await reports.GET(req("/api/reports?selectedDate=2026-07-08&period=Mingguan")))).filteredTasks.length, 1);
+    const customReport = await json<{ rangeFrom: string; rangeTo: string; filteredTasks: unknown[]; filteredActivities: unknown[] }>(await reports.GET(req("/api/reports?period=Kustom&rangeFrom=2026-07-10&rangeTo=2026-07-08")));
+    assert.equal(customReport.rangeFrom, "2026-07-08");
+    assert.equal(customReport.rangeTo, "2026-07-10");
+    assert.equal(customReport.filteredTasks.length, 1);
+    assert.equal(customReport.filteredActivities.length, 1);
     assert.equal((await json<unknown[]>(await history.GET(req("/api/history")))).length > 0, true);
 
     const exported = await json<{ version: number; tasks: unknown[]; settings: typeof defaultSettings }>(await backup.GET(req("/api/backup")));

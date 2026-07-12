@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.7.58 - 2026-07-12
+
+- Widened the dashboard and report work/activity chart legends on mobile and added a compact legend to the report activities-per-day chart.
+
+## 0.7.57 - 2026-07-12
+
+- Enlarged dashboard and report pie/donut charts and compacted their legends so the chart area has stronger visual weight.
+
+## 0.7.56 - 2026-07-12
+
+- Removed the Reports most frequent activity summary card, made blank reference dates render a safe empty report, and kept dashboard/report pie charts from clipping on mobile.
+
+## 0.7.55 - 2026-07-11
+
+- Removed preferred activity categories from Settings, the Activities preference filter, and the Settings API schema.
+
+## 0.7.54 - 2026-07-11
+
+- Compact dashboard chart spacing on mobile, fixed the duplicated Reports mobile chart toggle, and added custom date-range filtering across report summaries, charts, API, and exports.
+
+## 0.7.53 - 2026-07-11
+
+- Added Notes to the mobile quick-action menu, compacted key mobile menus with collapsible forms/filters and denser cards, and added strict 15-minute idle logout across browser and server sessions.
+
+## 0.7.52 - 2026-07-11
+
+- Changed the dashboard summary cards to a two-column layout on mobile and let the completion-rate card span the full row so the main dashboard requires less vertical scrolling.
+
 ## 0.7.51 - 2026-07-08
 
 - Added session-authenticated REST CRUD APIs for Work, Activities, Routines, Notes, and Settings, plus read-only Dashboard, Schedule, Reports, and History endpoints.

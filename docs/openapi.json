@@ -285,7 +285,6 @@
         "required": [
           "dashboardName",
           "theme",
-          "preferredCategories",
           "language",
           "timeZone"
         ],
@@ -299,20 +298,6 @@
               "Gelap",
               "Sistem"
             ]
-          },
-          "preferredCategories": {
-            "type": "array",
-            "items": {
-              "enum": [
-                "Kerja",
-                "Belajar",
-                "Olahraga",
-                "Istirahat",
-                "Meeting",
-                "Project Pribadi",
-                "Lainnya"
-              ]
-            }
           },
           "language": {
             "enum": [

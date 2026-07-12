@@ -15,11 +15,12 @@ import { useDashboardStore } from "@/lib/dashboard-store";
 import { getLinkedNotes } from "@/lib/notes";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
 import { taskFormStatuses, taskPriorities } from "@/lib/types";
-import { getEffectiveTaskStatus, normalizeTaskStatusForTime, nowIso, paginateItems, todayDate } from "@/lib/utils";
+import { cn, getEffectiveTaskStatus, normalizeTaskStatusForTime, nowIso, paginateItems, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 import { validateTaskForm } from "@/lib/validation";
 
-const pageSize = 10;
+const desktopPageSize = 10;
+const mobilePageSize = 5;
 
 const emptyTaskForm = {
   title: "",
@@ -38,6 +39,20 @@ function getStatusFilterParam(value: string | null): "Semua" | TaskStatus | null
   }
 
   return null;
+}
+
+function useResponsivePageSize() {
+  const [pageSize, setPageSize] = useState(desktopPageSize);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const update = () => setPageSize(mediaQuery.matches ? mobilePageSize : desktopPageSize);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  return pageSize;
 }
 
 function normalizeTaskForm(form: typeof emptyTaskForm, timeZone: string) {
@@ -91,6 +106,8 @@ function TasksPageContent() {
   const [priorityFilter, setPriorityFilter] = useState<"Semua" | TaskPriority>("Semua");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formExpanded, setFormExpanded] = useState(false);
+  const pageSize = useResponsivePageSize();
   const [form, setForm] = useState(emptyTaskForm);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const formSectionRef = useRef<HTMLElement | null>(null);
@@ -115,6 +132,8 @@ function TasksPageContent() {
     save: language === "id" ? "Simpan perubahan" : "Save changes",
     addWork: language === "id" ? "Tambah pekerjaan" : "Add work",
     reset: "Reset",
+    openForm: language === "id" ? "Tambah pekerjaan" : "Add work",
+    closeForm: language === "id" ? "Tutup form" : "Close form",
     filterStatus: language === "id" ? "Filter status" : "Status filter",
     filterPriority: language === "id" ? "Filter prioritas" : "Priority filter",
     all: language === "id" ? "Semua" : "All",
@@ -146,7 +165,7 @@ function TasksPageContent() {
     [priorityFilter, statusFilter, tasks, timeZone]
   );
 
-  const paginatedTasks = useMemo(() => paginateItems(filteredTasks, currentPage, pageSize), [currentPage, filteredTasks]);
+  const paginatedTasks = useMemo(() => paginateItems(filteredTasks, currentPage, pageSize), [currentPage, filteredTasks, pageSize]);
   const linkedNotes = useMemo(() => editingId ? getLinkedNotes(notes, "work", editingId) : [], [editingId, notes]);
 
   const fieldErrors = useMemo(() => ({
@@ -178,6 +197,7 @@ function TasksPageContent() {
     }
 
     resetForm();
+    setFormExpanded(true);
     window.requestAnimationFrame(() => {
       formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       window.setTimeout(() => titleInputRef.current?.focus(), 180);
@@ -219,6 +239,7 @@ function TasksPageContent() {
     }
 
     if (editingId !== task.id) {
+      setFormExpanded(true);
       setEditingId(task.id);
       setForm({
         title: task.title,
@@ -234,7 +255,7 @@ function TasksPageContent() {
     }
 
     router.replace("/tasks", { scroll: false });
-  }, [composeQuery, currentPage, editingId, priorityFilter, router, selectedTaskId, statusFilter, tasks]);
+  }, [composeQuery, currentPage, editingId, priorityFilter, router, selectedTaskId, statusFilter, tasks, pageSize]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -259,12 +280,14 @@ function TasksPageContent() {
       }
 
       resetForm();
+      setFormExpanded(false);
     } catch (error) {
       setFormErrors([error instanceof Error ? error.message : "Failed to save work item."]);
     }
   }
 
   function handleEdit(task: Task) {
+    setFormExpanded(true);
     setEditingId(task.id);
     setForm({
       title: task.title,
@@ -289,6 +312,7 @@ function TasksPageContent() {
     await deleteTask(id);
     if (editingId === id) {
       resetForm();
+      setFormExpanded(false);
     }
     if (task) {
       showToast({ message: (language === "id" ? "Pekerjaan" : "Work item") + " \"" + task.title + "\" " + text.deleted, tone: "warning", durationMs: 10000, actionLabel: text.undo, onAction: () => { void createTask(task).then(() => Promise.all(affectedNoteIds.map((noteId) => updateNote(noteId, { linkedType: "work", linkedId: id })))); } });
@@ -317,7 +341,11 @@ function TasksPageContent() {
     <div className="space-y-6">
       <PageHeader eyebrow={text.eyebrow} title={text.title} description={text.description} language={language} timeZone={timeZone} />
 
-      <section ref={formSectionRef} className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <button type="button" onClick={() => setFormExpanded((current) => !current)} className="inline-flex w-full items-center justify-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 md:hidden">
+        <Plus className="h-4 w-4" />{formExpanded || editingId ? text.closeForm : text.openForm}
+      </button>
+
+      <section ref={formSectionRef} className={cn("rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5", formExpanded || editingId ? "block" : "hidden md:block")}>
         <div className="mb-4 flex items-center gap-2">
           <Plus className="h-5 w-5 text-teal-700 dark:text-teal-300" />
           <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{editingId ? text.edit : text.add}</h2>

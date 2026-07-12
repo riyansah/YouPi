@@ -820,21 +820,58 @@ export function activityPerDayChartData(activities: Activity[]) {
     .map(([date, total]) => ({ date: formatDate(date, "id", APP_DEFAULT_TIME_ZONE), total }));
 }
 
-function buildReportDates(selectedDate: string, period: ReportPeriod) {
-  if (period === "Harian") {
-    return [selectedDate];
+export function normalizeReportDateRange(rangeFrom?: string | null, rangeTo?: string | null, fallbackDate = todayDate(APP_DEFAULT_TIME_ZONE)) {
+  const from = rangeFrom || fallbackDate;
+  const to = rangeTo || fallbackDate;
+
+  if (!from || !to) {
+    return { from: from || "", to: to || "" };
+  }
+
+  if (from <= to) {
+    return { from, to };
+  }
+
+  return { from: to, to: from };
+}
+
+export function getReportDateRange(selectedDate: string, period: ReportPeriod, rangeFrom?: string | null, rangeTo?: string | null) {
+  if (period === "Kustom") {
+    return normalizeReportDateRange(rangeFrom, rangeTo, selectedDate);
+  }
+
+  if (!selectedDate) {
+    return { from: "", to: "" };
   }
 
   if (period === "Bulanan") {
-    const monthEnd = endOfMonthDateKey(selectedDate);
-    const daysInMonth = Number(monthEnd.slice(-2));
-
-    return Array.from({ length: daysInMonth }, (_, index) => `${selectedDate.slice(0, 8)}${String(index + 1).padStart(2, "0")}`);
+    return { from: `${selectedDate.slice(0, 8)}01`, to: endOfMonthDateKey(selectedDate) };
   }
 
-  const start = startOfWeekDateKey(selectedDate);
+  if (period === "Mingguan") {
+    const from = startOfWeekDateKey(selectedDate);
+    return { from, to: addDaysToDateKey(from, 6) };
+  }
 
-  return Array.from({ length: 7 }, (_, index) => addDaysToDateKey(start, index));
+  return { from: selectedDate, to: selectedDate };
+}
+
+function buildReportDates(selectedDate: string, period: ReportPeriod, rangeFrom?: string | null, rangeTo?: string | null) {
+  const { from, to } = getReportDateRange(selectedDate, period, rangeFrom, rangeTo);
+
+  if (!from || !to) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  let current = from;
+
+  while (current <= to) {
+    dates.push(current);
+    current = addDaysToDateKey(current, 1);
+  }
+
+  return dates;
 }
 
 export function getReportPeriodLabel(period: ReportPeriod) {
@@ -846,6 +883,10 @@ export function getReportPeriodLabel(period: ReportPeriod) {
     return "Bulan Ini";
   }
 
+  if (period === "Kustom") {
+    return "Rentang Kustom";
+  }
+
   return "Minggu Ini";
 }
 
@@ -853,22 +894,34 @@ export function getReportChartTitle(baseTitle: string, period: ReportPeriod) {
   return `${baseTitle} ${getReportPeriodLabel(period)}`;
 }
 
-export function reportActivityChartData(activities: Activity[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE) {
-  return buildReportDates(selectedDate, period).map((date) => ({
+export function reportActivityChartData(activities: Activity[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE, rangeFrom?: string | null, rangeTo?: string | null) {
+  return buildReportDates(selectedDate, period, rangeFrom, rangeTo).map((date) => ({
     date: formatDate(date, "id", timeZone),
     total: activities.filter((activity) => activity.date === date).length
   }));
 }
 
-export function reportTaskProgressChartData(tasks: Task[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE) {
-  return buildReportDates(selectedDate, period).map((date) => ({
+export function reportTaskProgressChartData(tasks: Task[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE, rangeFrom?: string | null, rangeTo?: string | null) {
+  return buildReportDates(selectedDate, period, rangeFrom, rangeTo).map((date) => ({
     date: formatDate(date, "id", timeZone),
     completed: tasks.filter((task) => task.completedAt && dateKeyFromTimestamp(task.completedAt, timeZone) === date).length
   }));
 }
 
-export function filterTasksByReportPeriod(tasks: Task[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE) {
+export function filterTasksByReportPeriod(tasks: Task[], selectedDate: string, period: ReportPeriod, timeZone = APP_DEFAULT_TIME_ZONE, rangeFrom?: string | null, rangeTo?: string | null) {
   return tasks.filter((task) => {
+    if (period === "Kustom") {
+      const { from, to } = getReportDateRange(selectedDate, period, rangeFrom, rangeTo);
+      if (!from || !to) {
+        return false;
+      }
+      return task.deadline >= from && task.deadline <= to;
+    }
+
+    if (!selectedDate) {
+      return false;
+    }
+
     if (period === "Harian") {
       return task.deadline === selectedDate;
     }
@@ -910,10 +963,25 @@ export function weeklyProgressData(tasks: Task[], timeZone = APP_DEFAULT_TIME_ZO
 export function filterByReportPeriod<T extends { date?: string; createdAt: string }>(
   items: T[],
   selectedDate: string,
-  period: ReportPeriod
+  period: ReportPeriod,
+  timeZone = APP_DEFAULT_TIME_ZONE,
+  rangeFrom?: string | null,
+  rangeTo?: string | null
 ) {
   return items.filter((item) => {
     const value = item.date || dateKeyFromTimestamp(item.createdAt);
+
+    if (period === "Kustom") {
+      const { from, to } = getReportDateRange(selectedDate, period, rangeFrom, rangeTo);
+      if (!from || !to) {
+        return false;
+      }
+      return value >= from && value <= to;
+    }
+
+    if (!selectedDate) {
+      return false;
+    }
 
     if (period === "Harian") {
       return value === selectedDate;
@@ -923,7 +991,7 @@ export function filterByReportPeriod<T extends { date?: string; createdAt: strin
       return value.slice(0, 7) === selectedDate.slice(0, 7);
     }
 
-    return getWeekKey(value, APP_DEFAULT_TIME_ZONE) === getWeekKey(selectedDate, APP_DEFAULT_TIME_ZONE);
+    return getWeekKey(value, timeZone) === getWeekKey(selectedDate, timeZone);
   });
 }
 

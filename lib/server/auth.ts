@@ -6,6 +6,7 @@ import { getCurrentTimestampInTimeZone } from "@/lib/time";
 
 export const sessionCookieName = "activity_session";
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 7;
+const sessionIdleTimeoutMs = 15 * 60 * 1000;
 const registerWindowMs = 15 * 60 * 1000;
 const loginWindowMs = 15 * 60 * 1000;
 const registerLimit = 5;
@@ -13,6 +14,7 @@ const loginLimit = 10;
 const loginLockoutDurationsMs = [60_000, 5 * 60_000, 10 * 60_000, 30 * 60_000, 60 * 60_000] as const;
 
 interface SessionPayload {
+  sid: string;
   userId: string;
   user: string;
   exp: number;
@@ -29,6 +31,20 @@ interface LoginLockoutRow {
   failed_attempts: number;
   next_lock_index: number;
   locked_until: number;
+}
+
+interface SessionRow {
+  id: string;
+  user_id: string;
+  username: string;
+  expires_at: number;
+  last_activity_at: number;
+}
+
+export interface AuthSession {
+  sessionId: string;
+  userId: string;
+  user: string;
 }
 
 export type RateLimitAction = "login" | "register";
@@ -71,6 +87,14 @@ function ensureAuthTables() {
       next_lock_index INTEGER NOT NULL,
       locked_until INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      username TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      last_activity_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
   `);
 
   const tableInfo = getDatabase().prepare("PRAGMA table_info(auth_config)").all();
@@ -81,6 +105,35 @@ function ensureAuthTables() {
   }
 
   getDatabase().prepare("UPDATE auth_config SET user_id = COALESCE(user_id, 'user-1') WHERE id = 1").run();
+}
+
+function readSessionRow(sessionId: string): SessionRow | null {
+  ensureAuthTables();
+  const row = getDatabase()
+    .prepare("SELECT id, user_id, username, expires_at, last_activity_at FROM auth_sessions WHERE id = ?")
+    .get(sessionId);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    user_id: String(row.user_id),
+    username: String(row.username),
+    expires_at: Number(row.expires_at),
+    last_activity_at: Number(row.last_activity_at)
+  };
+}
+
+export function deleteSession(sessionId: string) {
+  ensureAuthTables();
+  getDatabase().prepare("DELETE FROM auth_sessions WHERE id = ?").run(sessionId);
+}
+
+export function deleteAllSessions() {
+  ensureAuthTables();
+  getDatabase().prepare("DELETE FROM auth_sessions").run();
 }
 
 function readAuthConfig(): AuthConfig | null {
@@ -161,6 +214,7 @@ export function resetUserCredentials(username: string, password: string) {
     ).run(userId, normalizedUsername, passwordHash, sessionSecret, now, now);
     db.prepare("DELETE FROM auth_rate_limits").run();
     db.prepare("DELETE FROM auth_login_lockouts").run();
+    db.prepare("DELETE FROM auth_sessions").run();
     return { ok: true as const, action: "created" as const, userId, username: normalizedUsername };
   }
 
@@ -173,6 +227,7 @@ export function resetUserCredentials(username: string, password: string) {
   );
   db.prepare("DELETE FROM auth_rate_limits").run();
   db.prepare("DELETE FROM auth_login_lockouts").run();
+  db.prepare("DELETE FROM auth_sessions").run();
 
   return { ok: true as const, action: "updated" as const, userId, username: normalizedUsername };
 }
@@ -220,11 +275,17 @@ export function createSessionToken(userId: string, username: string, now = Date.
     throw new Error("Auth is not configured.");
   }
 
-  const payload = base64UrlJson({ userId, user: username, exp: now + sessionMaxAgeSeconds * 1000 } satisfies SessionPayload);
+  const sessionId = randomBytes(32).toString("base64url");
+  const expiresAt = now + sessionMaxAgeSeconds * 1000;
+  getDatabase()
+    .prepare("INSERT INTO auth_sessions (id, user_id, username, expires_at, last_activity_at, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(sessionId, userId, username, expiresAt, now, now);
+
+  const payload = base64UrlJson({ sid: sessionId, userId, user: username, exp: expiresAt } satisfies SessionPayload);
   return `${payload}.${sign(payload, authConfig.sessionSecret)}`;
 }
 
-export function verifySessionToken(token: string | undefined, now = Date.now()) {
+export function verifySessionToken(token: string | undefined, now = Date.now(), touch = true): AuthSession | null {
   const authConfig = readAuthConfig();
 
   if (!token || !authConfig) {
@@ -247,11 +308,29 @@ export function verifySessionToken(token: string | undefined, now = Date.now()) 
   try {
     const payload = JSON.parse(Buffer.from(payloadValue, "base64url").toString("utf8")) as Partial<SessionPayload>;
 
-    if (!payload.userId || !payload.user || payload.user !== authConfig.username || payload.userId !== authConfig.userId || !payload.exp || payload.exp <= now) {
+    if (!payload.sid || !payload.userId || !payload.user || payload.user !== authConfig.username || payload.userId !== authConfig.userId || !payload.exp || payload.exp <= now) {
       return null;
     }
 
-    return { userId: payload.userId, user: payload.user };
+    const sessionRow = readSessionRow(payload.sid);
+
+    if (!sessionRow || sessionRow.user_id !== payload.userId || sessionRow.username !== payload.user || sessionRow.expires_at <= now) {
+      if (sessionRow) {
+        deleteSession(sessionRow.id);
+      }
+      return null;
+    }
+
+    if (sessionRow.last_activity_at + sessionIdleTimeoutMs <= now) {
+      deleteSession(sessionRow.id);
+      return null;
+    }
+
+    if (touch) {
+      getDatabase().prepare("UPDATE auth_sessions SET last_activity_at = ? WHERE id = ?").run(now, sessionRow.id);
+    }
+
+    return { sessionId: sessionRow.id, userId: payload.userId, user: payload.user };
   } catch {
     return null;
   }

@@ -12,7 +12,7 @@ export type ActivityCategory =
   | "Lainnya";
 
 export type ActivityStatus = "Akan Datang" | "Direncanakan" | "Berjalan" | "Selesai" | "Tertunda" | "Dibatalkan";
-export type ReportPeriod = "Harian" | "Mingguan" | "Bulanan";
+export type ReportPeriod = "Harian" | "Mingguan" | "Bulanan" | "Kustom";
 export type ThemePreference = "Terang" | "Gelap" | "Sistem";
 export type AppLanguage = "en" | "id";
 export type ScheduleSource = "work" | "activity" | "routine";
@@ -81,7 +81,6 @@ export interface Note {
 export interface DashboardSettings {
   dashboardName: string;
   theme: ThemePreference;
-  preferredCategories: ActivityCategory[];
   language: AppLanguage;
   timeZone: string;
 }

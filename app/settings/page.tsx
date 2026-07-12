@@ -7,10 +7,9 @@ import { useAppFeedback } from "@/components/AppFeedback";
 import { PageHeader } from "@/components/PageHeader";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { parseDashboardBackup, type DashboardBackup } from "@/lib/storage";
-import { tCategory, tTheme } from "@/lib/i18n";
+import { tTheme } from "@/lib/i18n";
 import { getFieldClassName } from "@/lib/field-styles";
-import type { ActivityCategory, AppLanguage, ThemePreference } from "@/lib/types";
-import { activityCategories } from "@/lib/types";
+import type { AppLanguage, ThemePreference } from "@/lib/types";
 import { APP_DEFAULT_TIME_ZONE, getDateKeyFromTimestamp } from "@/lib/time";
 
 const themes: ThemePreference[] = ["Terang", "Gelap", "Sistem"];
@@ -27,16 +26,6 @@ export default function SettingsPage() {
     event.preventDefault();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
-  }
-
-  function toggleCategory(category: ActivityCategory) {
-    setSettings((current) => {
-      const exists = current.preferredCategories.includes(category);
-      return {
-        ...current,
-        preferredCategories: exists ? current.preferredCategories.filter((item) => item !== category) : [...current.preferredCategories, category]
-      };
-    });
   }
 
   async function handleExport() {
@@ -133,7 +122,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow={language === "id" ? "Pengaturan" : "Settings"}
         title={language === "id" ? "Preferensi YouPi" : "YouPi Preferences"}
-        description={language === "id" ? "Atur bahasa, tampilan, kategori bawaan aktivitas, backup notes dan data utama, serta reset data. Semua waktu sistem memakai Asia/Jakarta (WIB)." : "Manage language, appearance, default activity categories, notes and core data backups, and data reset. All system time uses Asia/Jakarta (WIB)."}
+        description={language === "id" ? "Atur bahasa, tampilan, backup notes dan data utama, serta reset data. Semua waktu sistem memakai Asia/Jakarta (WIB)." : "Manage language, appearance, notes and core data backups, and data reset. All system time uses Asia/Jakarta (WIB)."}
         language={language}
         timeZone={APP_DEFAULT_TIME_ZONE}
       />
@@ -181,19 +170,6 @@ export default function SettingsPage() {
         <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
           {language === "id" ? "Zona waktu aplikasi dikunci ke Asia/Jakarta (WIB) untuk seluruh UI, log, backup, dan laporan." : "The app time zone is fixed to Asia/Jakarta (WIB) for all UI, logs, backups, and reports."}
         </div>
-
-        <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Preferensi kategori aktivitas" : "Preferred activity categories"}</legend>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{language === "id" ? "Kategori pilihan dipakai oleh filter Preferensi di menu Aktivitas." : "Selected categories are used by the Preferences filter in Activities."}</p>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {activityCategories.map((category) => (
-              <label key={category} className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:text-slate-200">
-                <input type="checkbox" checked={settings.preferredCategories.includes(category)} onChange={() => toggleCategory(category)} className="h-4 w-4 accent-teal-700" />
-                <span>{tCategory(category, language)}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
 
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" className="inline-flex items-center gap-2 rounded bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">

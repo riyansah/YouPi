@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarRange, Clock3, ExternalLink, Search, X } from "lucide-react";
+import { CalendarRange, Clock3, ExternalLink, ListFilter, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { formatHistoryMetadata } from "@/lib/history-utils";
@@ -114,6 +114,7 @@ export default function HistoryPage() {
   const [customFrom, setCustomFrom] = useState(() => todayDate(timeZone));
   const [customTo, setCustomTo] = useState(() => todayDate(timeZone));
   const [loading, setLoading] = useState(true);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +138,9 @@ export default function HistoryPage() {
     timeMonth: language === "id" ? "Bulan Ini" : "This Month",
     timeToday: language === "id" ? "Hari Ini" : "Today",
     timeWeek: language === "id" ? "Minggu Ini" : "This Week",
-    to: language === "id" ? "Sampai" : "To"
+    to: language === "id" ? "Sampai" : "To",
+    showFilters: language === "id" ? "Tampilkan filter" : "Show filters",
+    hideFilters: language === "id" ? "Sembunyikan filter" : "Hide filters"
   };
 
   const range = useMemo(() => getRange(timeFilter, customFrom, customTo, timeZone), [customFrom, customTo, timeFilter, timeZone]);
@@ -211,8 +214,12 @@ export default function HistoryPage() {
         language={language} timeZone={timeZone}
       />
 
-      <section className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="grid gap-4 xl:grid-cols-[2fr_1fr_1fr_1fr]">
+      <section className="rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5">
+        <div className="flex items-center justify-between gap-3 md:hidden">
+          <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{text.search} & {text.category}</p>
+          <button type="button" onClick={() => setFiltersExpanded((current) => !current)} className="inline-flex items-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><ListFilter className="h-4 w-4" />{filtersExpanded ? text.hideFilters : text.showFilters}</button>
+        </div>
+        <div className={(filtersExpanded ? "grid" : "hidden md:grid") + " mt-4 gap-4 xl:grid-cols-[2fr_1fr_1fr_1fr] md:mt-0"}>
           <label className="space-y-1">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.search}</span>
             <div className={getFieldShellClassName({ filled: Boolean(search) }) + " px-3 py-2"}>
@@ -248,7 +255,7 @@ export default function HistoryPage() {
           </label>
         </div>
         {timeFilter === "custom" ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className={(filtersExpanded ? "grid" : "hidden md:grid") + " mt-4 gap-4 sm:grid-cols-2"}>
             <label className="space-y-1">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.from}</span>
               <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} className={getFieldClassName({ filled: Boolean(customFrom) })} />
@@ -274,7 +281,7 @@ export default function HistoryPage() {
             </div>
             <div className="space-y-3 border-l border-slate-200 pl-4 dark:border-slate-700">
               {grouped[date].map((item) => (
-                <button key={item.id} type="button" onClick={() => void openDetail(item.id)} className="block w-full rounded border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/70">
+                <button key={item.id} type="button" onClick={() => void openDetail(item.id)} className="block w-full rounded border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/70 md:p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${eventTone[item.eventType]}`}>{eventLabel(item.eventType, language)}</span>
                     <span className="rounded bg-slate-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-800 dark:text-slate-100">{entityLabel(item.entityType, language)}</span>

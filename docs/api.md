@@ -74,7 +74,7 @@ curl -b cookie.jar -X POST http://127.0.0.1:3000/api/notes \
 
 ### Settings
 
-`GET /api/settings` returns dashboard preferences. `PATCH /api/settings` accepts `dashboardName`, `theme`, `preferredCategories`, `language`, and `timeZone`.
+`GET /api/settings` returns dashboard preferences. `PATCH /api/settings` accepts `dashboardName`, `theme`, `language`, and `timeZone`.
 
 ```bash
 curl -b cookie.jar -X PATCH http://127.0.0.1:3000/api/settings \

@@ -25,7 +25,13 @@ test("database auth handles sessions, register rate limits, and staged login loc
     assert.deepEqual(auth.verifyCredentials("owner", "Better2!"), { ok: true, userId: "user-1", username: "owner" });
 
     const token = auth.createSessionToken("user-1", "owner", 1000);
-    assert.deepEqual(auth.verifySessionToken(token, 2000), { userId: "user-1", user: "owner" });
+    const session = auth.verifySessionToken(token, 2000);
+    assert.equal(session?.userId, "user-1");
+    assert.equal(session?.user, "owner");
+    assert.equal(typeof session?.sessionId, "string");
+
+    const idleToken = auth.createSessionToken("user-1", "owner", 5000);
+    assert.equal(auth.verifySessionToken(idleToken, 5000 + 15 * 60 * 1000, false), null);
     assert.equal(auth.verifySessionToken(token, 1000 + 60 * 60 * 24 * 8 * 1000), null);
     assert.equal(auth.verifySessionToken(`${token}x`, 2000), null);
 
@@ -101,7 +107,10 @@ test("database auth handles sessions, register rate limits, and staged login loc
     });
 
     const resetToken = auth.createSessionToken("user-1", "rescued", 3000);
-    assert.deepEqual(auth.verifySessionToken(resetToken, 4000), { userId: "user-1", user: "rescued" });
+    const resetSession = auth.verifySessionToken(resetToken, 4000);
+    assert.equal(resetSession?.userId, "user-1");
+    assert.equal(resetSession?.user, "rescued");
+    assert.equal(typeof resetSession?.sessionId, "string");
     assert.equal(auth.verifySessionToken(token, 4000), null);
     assert.deepEqual(auth.recordLoginFailure("lockout-ip", 100_000), {
       locked: false,

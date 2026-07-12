@@ -193,6 +193,7 @@ function SchedulePageContent() {
   const [anchorDate, setAnchorDate] = useState(() => todayDate(timeZone));
   const [sourceFilter, setSourceFilter] = useState<ScheduleSourceFilter>("all");
   const [statusFilter, setStatusFilter] = useState<ScheduleStatusFilter>("all");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const range = useMemo(() => buildScheduleRange(anchorDate, viewMode), [anchorDate, viewMode]);
   const allItems = useMemo(() => buildScheduleItems(tasks, activities, routines, range, reference, timeZone), [activities, reference, range, routines, tasks, timeZone]);
@@ -228,7 +229,9 @@ function SchedulePageContent() {
     view: language === "id" ? "Mode tampilan" : "View mode",
     previousRange: language === "id" ? "Rentang sebelumnya" : "Previous range",
     nextRange: language === "id" ? "Rentang berikutnya" : "Next range",
-    todayButton: language === "id" ? "Hari ini" : "Today"
+    todayButton: language === "id" ? "Hari ini" : "Today",
+    showFilters: language === "id" ? "Tampilkan filter" : "Show filters",
+    hideFilters: language === "id" ? "Sembunyikan filter" : "Hide filters"
   };
 
   function shiftAnchor(direction: -1 | 1) {
@@ -276,7 +279,7 @@ function SchedulePageContent() {
     <div className="space-y-6">
       <PageHeader eyebrow={text.eyebrow} title={text.title} description={text.description} language={language} timeZone={timeZone} />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-5 xl:gap-4">
         <StatCard title={text.todayTotal} value={todaySummary.total} icon={ListTodo} tone="slate" />
         <StatCard title={text.workTotal} value={summary.work} href="/tasks" icon={BriefcaseBusiness} tone="blue" />
         <StatCard title={text.activityTotal} value={summary.activity} href="/activities" icon={ActivityIcon} tone="teal" />
@@ -284,12 +287,15 @@ function SchedulePageContent() {
         <StatCard title={text.missedTotal} value={summary.missed} icon={TriangleAlert} tone="rose" />
       </section>
 
-      <section className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <section className="rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{text.filterTitle}</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{getRangeLabel(viewMode, anchorDate, language, timeZone)}</p>
           </div>
+          <button type="button" onClick={() => setFiltersExpanded((current) => !current)} className="inline-flex shrink-0 items-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden"><ListFilter className="h-4 w-4" />{filtersExpanded ? text.hideFilters : text.showFilters}</button>
+        </div>
+        <div className={cn("mt-4 flex-col gap-4 xl:flex xl:flex-row xl:items-end xl:justify-between", filtersExpanded ? "flex" : "hidden md:flex")}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="space-y-1">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{text.date}</span>
@@ -336,7 +342,7 @@ function SchedulePageContent() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <div className={cn("mt-4 flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700 md:flex", filtersExpanded ? "flex" : "hidden md:flex")}>
           <div className="inline-flex items-center gap-2">
             <button type="button" onClick={() => shiftAnchor(-1)} className="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800" aria-label={text.previousRange}><ChevronLeft className="h-4 w-4" /></button>
             <button type="button" onClick={() => setAnchorDate(todayDate(timeZone))} className="inline-flex items-center rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">{text.todayButton}</button>
@@ -354,7 +360,12 @@ function SchedulePageContent() {
       ) : null}
 
       {viewMode === "week" ? (
-        <section className="overflow-x-auto rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <>
+        <div className="space-y-4 md:hidden">
+          {range.dates.map((date) => (itemsByDate[date] || []).length ? <DateSection key={date} date={date} items={itemsByDate[date] || []} language={language} timeZone={timeZone} /> : null)}
+          {!filteredItems.length ? <div className="rounded border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{getEmptyText(language)}</div> : null}
+        </div>
+        <section className="hidden overflow-x-auto rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:block">
           <div className="grid min-w-[980px] grid-cols-7 gap-4">
             {range.dates.map((date) => (
               <div key={date} className="space-y-3 rounded border border-slate-200 p-3 dark:border-slate-700">
@@ -369,15 +380,20 @@ function SchedulePageContent() {
             ))}
           </div>
         </section>
+        </>
       ) : null}
 
       {viewMode === "month" ? (
-        <section className="space-y-4 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section className="space-y-4 rounded border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-5">
           <p className="text-sm text-slate-500 dark:text-slate-400">{text.monthHint}</p>
-          <div className="grid grid-cols-7 gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <div className="space-y-3 md:hidden">
+            {range.dates.filter((date) => (itemsByDate[date] || []).length).map((date) => <DateSection key={date} date={date} items={itemsByDate[date] || []} language={language} timeZone={timeZone} />)}
+            {!filteredItems.length ? <div className="rounded border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">{getEmptyText(language)}</div> : null}
+          </div>
+          <div className="hidden grid-cols-7 gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 md:grid">
             {weekdays.map((day) => <div key={day} className="px-2 py-1">{tWeekday(day, language)}</div>)}
           </div>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="hidden grid-cols-7 gap-2 md:grid">
             {monthCells.map((cell, index) => (
               <div key={`${cell.date || "blank"}-${index}`} className={cn("min-h-32 rounded border p-2", cell.date ? "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/40" : "border-transparent")}>
                 {cell.date ? (

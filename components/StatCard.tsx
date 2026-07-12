@@ -25,11 +25,11 @@ export function StatCard({ title, value, description, href, icon: Icon, tone = "
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-950 dark:text-slate-50">{value}</p>
+          <p className="mt-1 text-2xl font-bold text-slate-950 dark:text-slate-50 sm:mt-2 sm:text-3xl">{value}</p>
         </div>
         {Icon ? (
-          <div className={getIconToneClassName(tones[tone]) + " h-11 w-11 rounded-xl border border-white/70 dark:border-white/10"}>
-            <Icon className="h-5 w-5" />
+          <div className={getIconToneClassName(tones[tone]) + " h-9 w-9 rounded-xl border border-white/70 dark:border-white/10 sm:h-11 sm:w-11"}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         ) : null}
       </div>
@@ -37,7 +37,7 @@ export function StatCard({ title, value, description, href, icon: Icon, tone = "
     </>
   );
 
-  const className = getInteractiveSurfaceClassName() + " block p-5 focus:outline-none focus:ring-2 focus:ring-teal-500";
+  const className = getInteractiveSurfaceClassName() + " block p-4 focus:outline-none focus:ring-2 focus:ring-teal-500 sm:p-5";
 
   if (href) {
     return (

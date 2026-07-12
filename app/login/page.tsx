@@ -70,8 +70,10 @@ function LoginForm() {
   const locked = lockoutUntil !== null && remainingSeconds > 0;
   const controlsDisabled = submitting || locked;
 
+  const reason = searchParams.get("reason");
   const text = {
     description: language === "id" ? "Masuk untuk membuka dashboard perencanaan pribadi Anda." : "Sign in to open your personal planning dashboard.",
+    idleReason: language === "id" ? "Sesi berakhir karena tidak aktif selama 15 menit. Silakan masuk kembali." : "Your session ended after 15 minutes of inactivity. Please sign in again.",
     lockedInline: language === "id" ? `Terlalu banyak percobaan login. Coba lagi dalam ${formatLockoutCountdown(remainingSeconds)}.` : `Too many login attempts. Try again in ${formatLockoutCountdown(remainingSeconds)}.`,
     lockedGeneral: language === "id" ? "Terlalu banyak percobaan login. Coba lagi setelah hitung mundur selesai." : "Too many login attempts. Try again after the countdown finishes.",
     invalidForm: language === "id" ? "Periksa kembali username dan password." : "Please review your username and password.",
@@ -223,6 +225,10 @@ function LoginForm() {
           <h1 className="mt-1 text-2xl font-bold text-slate-950">{BRAND_TAGLINE}</h1>
           <p className="mt-2 text-sm text-slate-500">{text.description}</p>
         </div>
+
+        {reason === "idle" && !error ? (
+          <p className="mt-5 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{text.idleReason}</p>
+        ) : null}
 
         {error ? (
           <p className={locked ? "mt-5 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800" : "mt-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"}>

@@ -4,7 +4,7 @@
 
 YouPi is a single-user personal activity dashboard for managing work, activities, routines, schedules, notes, history, reports, and settings in one local web app.
 
-The app stores data in SQLite, protects the dashboard behind login, and uses `Asia/Jakarta (WIB)` for app time, reports, history, and logs.
+The app stores data in SQLite, protects the dashboard behind login, automatically logs out inactive sessions after 15 minutes, and uses `Asia/Jakarta (WIB)` for app time, reports, history, and logs.
 
 ## Requirements
 
@@ -32,15 +32,15 @@ On first run, create the local account from `/register`. After that, use `/login
 
 ## Main Menus
 
-- `Dashboard`: summary cards, charts, nearest deadlines, and today's agenda.
-- `Work`: tasks, projects, priorities, status, deadlines, and optional start/end times.
+- `Dashboard`: mobile-friendly summary cards, compact charts, nearest deadlines, and today's agenda.
+- `Work`: mobile-compact tasks, projects, priorities, status, deadlines, and optional start/end times.
 - `Activities`: one-time activities with date, category, status, filters, and overdue actions.
 - `Routines`: recurring weekly routines.
-- `Schedule`: Today, Week, Month, and Agenda views across work, activities, and routines.
+- `Schedule`: mobile-friendly Today, Week, Month, and Agenda views across work, activities, and routines.
 - `Notes`: personal notes and notes linked to work, activities, or routines.
 - `History`: automatic timeline of important item changes.
-- `Reports`: daily, weekly, and monthly reports with CSV, Excel, and PDF export.
-- `Settings`: dashboard name, language, theme, preferred categories, backup/import, reset, and password change.
+- `Reports`: daily, weekly, monthly, and custom date-range reports with compact mobile controls, larger mobile-safe pie/donut charts with compact legends, blank reference-date handling, plus CSV, Excel, and PDF export.
+- `Settings`: dashboard name, language, theme, backup/import, reset, and password change.
 
 The detailed menu guide is in [docs/panduan-menu.md](docs/panduan-menu.md).
 

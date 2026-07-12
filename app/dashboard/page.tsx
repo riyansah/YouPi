@@ -58,27 +58,29 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader eyebrow="Dashboard" title={settings.dashboardName} description={text.description} language={language} timeZone={timeZone} />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard title={text.totalWork} value={taskSummary.total} href="/tasks?status=Semua" icon={ListTodo} tone="slate" />
         <StatCard title={text.upcoming} value={taskSummary.upcoming} href="/tasks?status=Akan%20Datang" icon={CalendarClock} tone="slate" />
         <StatCard title={text.inProgress} value={taskSummary.running} href="/tasks?status=Berjalan" icon={Clock3} tone="blue" />
         <StatCard title={text.completed} value={taskSummary.completed} href="/tasks?status=Selesai" icon={CheckCircle2} tone="teal" />
         <StatCard title={text.pending} value={taskSummary.pending} href="/tasks?status=Tertunda" icon={PauseCircle} tone="amber" />
         <StatCard title={text.todayActivities} value={activitySummary.today} href={`/activities?date=${today}&category=Semua`} icon={ActivityIcon} tone="blue" />
-        <StatCard title={text.progress} value={`${taskSummary.completionRate}%`} icon={Percent} tone="teal" />
+        <div className="col-span-2 xl:col-span-1">
+          <StatCard title={text.progress} value={`${taskSummary.completionRate}%`} icon={Percent} tone="teal" />
+        </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
+      <section className="grid gap-3 sm:gap-4 xl:grid-cols-3">
         <TaskStatusChart tasks={tasks} maxLegendItems={4} language={language} timeZone={timeZone} />
         <DailyActivityChart activities={activities} routines={routines} language={language} timeZone={timeZone} />
         <WeeklyProgressChart tasks={tasks} language={language} timeZone={timeZone} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section className="grid gap-3 sm:gap-4 xl:grid-cols-2">
+        <div className="rounded border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{text.nearest}</h2>
           <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-700">
             {paginatedTasks.totalItems ? paginatedTasks.items.map((task) => {
@@ -104,7 +106,7 @@ export default function DashboardPage() {
           <div className="mt-4"><Pagination currentPage={paginatedTasks.currentPage} totalPages={paginatedTasks.totalPages} totalItems={paginatedTasks.totalItems} startItem={paginatedTasks.startItem} endItem={paginatedTasks.endItem} onPageChange={setTaskPage} language={language} /></div>
         </div>
 
-        <div className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{text.todayAgenda}</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{formatDateWithWeekday(today, language, timeZone)}</p>
           <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-700">

@@ -1849,11 +1849,6 @@
   "settings": {
     "dashboardName": "Project Manager July 2026",
     "theme": "Terang",
-    "preferredCategories": [
-      "Kerja",
-      "Meeting",
-      "Belajar"
-    ],
     "language": "id"
   }
 }

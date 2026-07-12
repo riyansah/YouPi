@@ -881,6 +881,52 @@ test("filterTasksByReportPeriod filters by deadline instead of createdAt", () =>
   assert.deepEqual(filtered.map((task) => task.id), ["task-2", "task-4"]);
 });
 
+test("custom report ranges normalize bounds and build daily buckets", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-24",
+    period: "Kustom",
+    rangeFrom: "2026-06-24",
+    rangeTo: "2026-06-23",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+
+  assert.equal(report.rangeFrom, "2026-06-23");
+  assert.equal(report.rangeTo, "2026-06-24");
+  assert.deepEqual(report.filteredTasks.map((task) => task.id), ["task-4", "task-2", "task-3"]);
+  assert.equal(report.activitySummary.total, 7);
+  assert.deepEqual(report.activitySeries.map((item) => item.total), [7, 0]);
+  assert.deepEqual(report.taskProgressSeries.map((item) => item.completed), [1, 0]);
+});
+
+
+test("blank report reference dates produce an empty safe report", () => {
+  const report = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "",
+    period: "Mingguan",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+
+  assert.equal(report.rangeFrom, "");
+  assert.equal(report.rangeTo, "");
+  assert.equal(report.dateRangeLabel, "-");
+  assert.equal(report.taskSummary.total, 0);
+  assert.equal(report.activitySummary.total, 0);
+  assert.deepEqual(report.filteredTasks, []);
+  assert.deepEqual(report.filteredActivities, []);
+  assert.deepEqual(report.categorySeries, []);
+  assert.deepEqual(report.activitySeries, []);
+  assert.deepEqual(report.taskProgressSeries, []);
+  assert.equal(getReportCsvFilename(report), "productivity-report-mingguan-no-date-detail.csv");
+  assert.equal(getReportExcelFilename(report), "productivity-report-mingguan-no-date.xls");
+  assert.equal(getReportPdfFilename(report, "summary"), "productivity-report-mingguan-no-date-summary.pdf");
+});
+
 
 test("buildReportExportModel follows report filters and prepares important details", () => {
   const report = buildReportExportModel({
@@ -1029,22 +1075,34 @@ test("report export filenames distinguish CSV Excel and PDF", () => {
   assert.equal(getReportExcelFilename(report), "productivity-report-harian-2026-06-23.xls");
   assert.equal(getReportPdfFilename(report, "summary"), "productivity-report-harian-2026-06-23-summary.pdf");
   assert.equal(getReportPdfFilename(report, "full"), "productivity-report-harian-2026-06-23-full.pdf");
+
+  const customReport = buildReportExportModel({
+    tasks: defaultTasks,
+    activities: defaultActivities,
+    selectedDate: "2026-06-24",
+    period: "Kustom",
+    rangeFrom: "2026-06-24",
+    rangeTo: "2026-06-23",
+    currentDate: "2026-06-24",
+    generatedAt: "2026-06-24T00:00:00.000Z"
+  });
+
+  assert.equal(getReportCsvFilename(customReport), "productivity-report-kustom-2026-06-23-to-2026-06-24-detail.csv");
+  assert.equal(getReportExcelFilename(customReport), "productivity-report-kustom-2026-06-23-to-2026-06-24.xls");
+  assert.equal(getReportPdfFilename(customReport, "summary"), "productivity-report-kustom-2026-06-23-to-2026-06-24-summary.pdf");
 });
 
 
-test("matchesActivityCategoryFilter applies preferred categories strictly", () => {
-  assert.equal(matchesActivityCategoryFilter("Kerja", "Semua", []), true);
-  assert.equal(matchesActivityCategoryFilter("Kerja", "Preferensi", ["Kerja", "Belajar"]), true);
-  assert.equal(matchesActivityCategoryFilter("Olahraga", "Preferensi", ["Kerja", "Belajar"]), false);
-  assert.equal(matchesActivityCategoryFilter("Kerja", "Preferensi", []), false);
-  assert.equal(matchesActivityCategoryFilter("Kerja", "Kerja", []), true);
-  assert.equal(matchesActivityCategoryFilter("Belajar", "Kerja", []), false);
+test("matchesActivityCategoryFilter applies category filters strictly", () => {
+  assert.equal(matchesActivityCategoryFilter("Kerja", "Semua"), true);
+  assert.equal(matchesActivityCategoryFilter("Kerja", "Kerja"), true);
+  assert.equal(matchesActivityCategoryFilter("Belajar", "Kerja"), false);
 });
 
 test("getActivityCategoryFilterParam accepts only valid category filter values", () => {
-  assert.equal(getActivityCategoryFilterParam("Preferensi"), "Preferensi");
   assert.equal(getActivityCategoryFilterParam("Semua"), "Semua");
   assert.equal(getActivityCategoryFilterParam("Kerja"), "Kerja");
+  assert.equal(getActivityCategoryFilterParam("Preferensi"), null);
   assert.equal(getActivityCategoryFilterParam("Tidak Valid"), null);
   assert.equal(getActivityCategoryFilterParam(null), null);
 });

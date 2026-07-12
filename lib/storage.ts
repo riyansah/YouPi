@@ -2,6 +2,8 @@ import { APP_DEFAULT_TIME_ZONE, getCurrentTimestampInTimeZone, normalizeTimeZone
 import { activityCategories, activityStatuses, taskPriorities, taskStatuses, weekdays } from "@/lib/types";
 import type { Activity, DashboardSettings, HistoryEvent, Note, Routine, Task } from "@/lib/types";
 
+type DashboardSettingsInput = Partial<DashboardSettings> & { preferredCategories?: unknown };
+
 export interface DashboardBackup {
   version: 6;
   exportedAt: string;
@@ -191,25 +193,27 @@ export function isHistoryEvent(value: unknown): value is HistoryEvent {
   );
 }
 
-export function normalizeDashboardSettings(settings: DashboardSettings): DashboardSettings {
+export function normalizeDashboardSettings(settings: DashboardSettingsInput): DashboardSettings {
   return {
-    dashboardName: settings.dashboardName,
+    dashboardName: typeof settings.dashboardName === "string" ? settings.dashboardName : "YouPi Dashboard",
     theme: includesValue(["Terang", "Gelap", "Sistem"], settings.theme) ? settings.theme : "Terang",
-    preferredCategories: settings.preferredCategories.filter((category) => includesValue(activityCategories, category)),
     language: settings.language === "id" ? "id" : "en",
     timeZone: normalizeTimeZone(settings.timeZone || APP_DEFAULT_TIME_ZONE)
   };
 }
 
 export function isDashboardSettings(value: unknown): value is DashboardSettings {
-  if (!isRecord(value) || !Array.isArray(value.preferredCategories)) {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if ("preferredCategories" in value && (!Array.isArray(value.preferredCategories) || !value.preferredCategories.every((category) => includesValue(activityCategories, category)))) {
     return false;
   }
 
   return (
     isString(value.dashboardName) &&
     includesValue(["Terang", "Gelap", "Sistem"], value.theme) &&
-    value.preferredCategories.every((category) => includesValue(activityCategories, category)) &&
     (value.language === undefined || value.language === "en" || value.language === "id") &&
     (value.timeZone === undefined || isSupportedTimeZoneValue(value.timeZone))
   );

@@ -45,9 +45,9 @@ function ChartFrame({
   contentClassName?: string;
 }) {
   return (
-    <section className="rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="min-w-0 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{title}</h2>
-      <div className={contentClassName}>{children}</div>
+      <div className={`min-w-0 ${contentClassName}`}>{children}</div>
     </section>
   );
 }
@@ -65,12 +65,12 @@ export function TaskStatusChart({ tasks, title, maxLegendItems, language = "en",
     .slice(0, maxLegendItems || data.length);
 
   return (
-    <ChartFrame title={title || tChartTitle("taskStatus", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
-      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
-        <div className="relative min-h-0">
+    <ChartFrame title={title || tChartTitle("taskStatus", language)} contentClassName="mt-4 h-80 sm:h-96">
+      <div className="grid h-full min-w-0 grid-rows-[minmax(13rem,1fr)_auto] gap-2">
+        <div className="relative min-h-0 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-              <Pie data={data} dataKey="value" nameKey="label" innerRadius={58} outerRadius={86} paddingAngle={3}>
+            <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+              <Pie data={data} dataKey="value" nameKey="label" innerRadius="58%" outerRadius="92%" paddingAngle={3}>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={colors[index % colors.length]} />
                 ))}
@@ -85,9 +85,9 @@ export function TaskStatusChart({ tasks, title, maxLegendItems, language = "en",
             </div>
           </div>
         </div>
-        <div className="grid min-h-[3.5rem] content-start gap-2 text-sm sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-1.5 text-[11px] sm:text-sm">
           {legendItems.map((item) => (
-            <div key={item.name} className="flex items-center justify-between gap-3 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+            <div key={item.name} className="flex min-w-0 items-center justify-between gap-2 rounded border border-slate-200 px-2 py-1.5 dark:border-slate-700">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
                 <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
@@ -115,16 +115,24 @@ export function ActivityPerDayChart({
   const resolvedData = data || activityPerDayChartData(activities || []);
 
   return (
-    <ChartFrame title={title || tChartTitle("activityPerDay", language)}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={resolvedData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-          <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-          <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-          <Bar dataKey="total" fill="#2563eb" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <ChartFrame title={title || tChartTitle("activityPerDay", language)} contentClassName="mt-4 h-72 sm:h-80">
+      <div className="grid h-full min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-2">
+        <div className="min-h-0 min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={resolvedData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+              <Bar dataKey="total" name={language === "id" ? "Aktivitas" : "Activities"} fill="#2563eb" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex items-center gap-2 rounded border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700 sm:text-sm">
+          <span className="h-3 w-3 shrink-0 rounded-sm bg-blue-600" />
+          <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Aktivitas" : "Activities"}</span>
+        </div>
+      </div>
     </ChartFrame>
   );
 }
@@ -145,9 +153,9 @@ export function DailyActivityChart({
   const data = dailyActivityChartData(activities, routines, undefined, timeZone);
 
   return (
-    <ChartFrame title={title || tChartTitle("dailyActivity", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
-      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
-        <div className="min-h-0">
+    <ChartFrame title={title || tChartTitle("dailyActivity", language)} contentClassName="mt-4 h-64 sm:h-80">
+      <div className="grid h-full min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
+        <div className="min-h-0 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
@@ -194,12 +202,12 @@ export function ActivityCategoryChart({
   }));
 
   return (
-    <ChartFrame title={title || tChartTitle("activityCategory", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
-      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
-        <div className="min-h-0">
+    <ChartFrame title={title || tChartTitle("activityCategory", language)} contentClassName="mt-4 h-80 sm:h-96">
+      <div className="grid h-full min-w-0 grid-rows-[minmax(13rem,1fr)_auto] gap-2">
+        <div className="min-h-0 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} dataKey="value" nameKey="label" outerRadius={96} label>
+            <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+              <Pie data={data} dataKey="value" nameKey="label" outerRadius="92%">
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={colors[index % colors.length]} />
                 ))}
@@ -208,9 +216,9 @@ export function ActivityCategoryChart({
             </PieChart>
           </ResponsiveContainer>
         </div>
-        <div className="grid gap-2 text-sm sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-1.5 text-[11px] sm:text-sm">
           {legendItems.map((item) => (
-            <div key={item.name} className="flex items-center justify-between gap-3 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+            <div key={item.name} className="flex min-w-0 items-center justify-between gap-2 rounded border border-slate-200 px-2 py-1.5 dark:border-slate-700">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
                 <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
@@ -240,9 +248,9 @@ export function WeeklyProgressChart({
   const resolvedData = data || weeklyProgressData(tasks || [], timeZone);
 
   return (
-    <ChartFrame title={title || tChartTitle("weeklyProgress", language)} contentClassName="mt-4 h-[30rem] sm:h-80">
-      <div className="grid h-full grid-rows-[minmax(0,1fr)_auto] gap-3">
-        <div className="min-h-0">
+    <ChartFrame title={title || tChartTitle("weeklyProgress", language)} contentClassName="mt-4 h-64 sm:h-80">
+      <div className="grid h-full min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
+        <div className="min-h-0 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={resolvedData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
