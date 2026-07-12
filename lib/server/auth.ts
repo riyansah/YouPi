@@ -131,6 +131,11 @@ export function deleteSession(sessionId: string) {
   getDatabase().prepare("DELETE FROM auth_sessions WHERE id = ?").run(sessionId);
 }
 
+export function deleteSessionsForUser(userId: string) {
+  ensureAuthTables();
+  getDatabase().prepare("DELETE FROM auth_sessions WHERE user_id = ?").run(userId);
+}
+
 export function deleteAllSessions() {
   ensureAuthTables();
   getDatabase().prepare("DELETE FROM auth_sessions").run();
@@ -277,9 +282,18 @@ export function createSessionToken(userId: string, username: string, now = Date.
 
   const sessionId = randomBytes(32).toString("base64url");
   const expiresAt = now + sessionMaxAgeSeconds * 1000;
-  getDatabase()
-    .prepare("INSERT INTO auth_sessions (id, user_id, username, expires_at, last_activity_at, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(sessionId, userId, username, expiresAt, now, now);
+  const db = getDatabase();
+
+  db.exec("BEGIN");
+  try {
+    db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").run(userId);
+    db.prepare("INSERT INTO auth_sessions (id, user_id, username, expires_at, last_activity_at, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(sessionId, userId, username, expiresAt, now, now);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 
   const payload = base64UrlJson({ sid: sessionId, userId, user: username, exp: expiresAt } satisfies SessionPayload);
   return `${payload}.${sign(payload, authConfig.sessionSecret)}`;

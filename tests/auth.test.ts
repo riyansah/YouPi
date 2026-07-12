@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { NextRequest } from "next/server";
 import { validateAuthPassword, validateAuthUsername } from "../lib/auth-validation";
 
 test("database auth handles sessions, register rate limits, and staged login lockouts", async () => {
@@ -31,6 +32,8 @@ test("database auth handles sessions, register rate limits, and staged login loc
     assert.equal(typeof session?.sessionId, "string");
 
     const idleToken = auth.createSessionToken("user-1", "owner", 5000);
+    assert.equal(auth.verifySessionToken(token, 5001, false), null);
+    assert.equal(auth.verifySessionToken(idleToken, 5001, false)?.userId, "user-1");
     assert.equal(auth.verifySessionToken(idleToken, 5000 + 15 * 60 * 1000, false), null);
     assert.equal(auth.verifySessionToken(token, 1000 + 60 * 60 * 24 * 8 * 1000), null);
     assert.equal(auth.verifySessionToken(`${token}x`, 2000), null);
@@ -120,6 +123,63 @@ test("database auth handles sessions, register rate limits, and staged login loc
       justLocked: false,
       lockoutSeconds: 0
     });
+  } finally {
+    if (previousSqlitePath === undefined) {
+      delete process.env.SQLITE_PATH;
+    } else {
+      process.env.SQLITE_PATH = previousSqlitePath;
+    }
+  }
+});
+
+test("login route invalidates older sessions for the same user", async () => {
+  const previousSqlitePath = process.env.SQLITE_PATH;
+  process.env.SQLITE_PATH = join(mkdtempSync(join(tmpdir(), "activity-auth-route-")), "activity.sqlite");
+
+  try {
+    const auth = await import("../lib/server/auth");
+    const login = await import("../app/api/auth/login/route");
+    const logout = await import("../app/api/auth/logout/route");
+    const dashboard = await import("../app/api/dashboard/route");
+
+    assert.deepEqual(auth.registerUser("owner", "Password1"), { ok: true, userId: "user-1", username: "owner" });
+
+    function loginRequest() {
+      return new NextRequest(new URL("/api/auth/login", "http://localhost"), {
+        method: "POST",
+        headers: new Headers({ "content-type": "application/json" }),
+        body: JSON.stringify({ username: "owner", password: "Password1" })
+      });
+    }
+
+    function authenticatedRequest(path: string, token: string, method = "GET") {
+      return new NextRequest(new URL(path, "http://localhost"), {
+        method,
+        headers: new Headers({ cookie: `${auth.sessionCookieName}=${token}` })
+      });
+    }
+
+    function sessionTokenFrom(response: Response) {
+      const setCookie = response.headers.get("set-cookie") || "";
+      const match = setCookie.match(new RegExp(`${auth.sessionCookieName}=([^;]+)`));
+      assert.ok(match, "login response should set a session cookie");
+      return match[1];
+    }
+
+    const firstLogin = await login.POST(loginRequest());
+    assert.equal(firstLogin.status, 200);
+    const firstToken = sessionTokenFrom(firstLogin);
+    assert.equal((await dashboard.GET(authenticatedRequest("/api/dashboard", firstToken))).status, 200);
+
+    const secondLogin = await login.POST(loginRequest());
+    assert.equal(secondLogin.status, 200);
+    const secondToken = sessionTokenFrom(secondLogin);
+    assert.equal((await dashboard.GET(authenticatedRequest("/api/dashboard", firstToken))).status, 401);
+    assert.equal((await dashboard.GET(authenticatedRequest("/api/dashboard", secondToken))).status, 200);
+
+    const logoutResponse = await logout.POST(authenticatedRequest("/api/auth/logout", secondToken, "POST"));
+    assert.equal(logoutResponse.status, 200);
+    assert.equal((await dashboard.GET(authenticatedRequest("/api/dashboard", secondToken))).status, 401);
   } finally {
     if (previousSqlitePath === undefined) {
       delete process.env.SQLITE_PATH;

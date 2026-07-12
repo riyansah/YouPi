@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.59 - 2026-07-12
+
+- Enforced a single active auth session per user so successful login invalidates older sessions while logout keeps clearing the active session.
+
 ## 0.7.58 - 2026-07-12
 
 - Widened the dashboard and report work/activity chart legends on mobile and added a compact legend to the report activities-per-day chart.

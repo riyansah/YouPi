@@ -4,7 +4,7 @@
 
 YouPi is a single-user personal activity dashboard for managing work, activities, routines, schedules, notes, history, reports, and settings in one local web app.
 
-The app stores data in SQLite, protects the dashboard behind login, automatically logs out inactive sessions after 15 minutes, and uses `Asia/Jakarta (WIB)` for app time, reports, history, and logs.
+The app stores data in SQLite, protects the dashboard behind login, keeps only the latest user session active, automatically logs out inactive sessions after 15 minutes, and uses `Asia/Jakarta (WIB)` for app time, reports, history, and logs.
 
 ## Requirements
 
