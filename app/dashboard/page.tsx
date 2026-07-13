@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Activity as ActivityIcon, CalendarClock, CheckCircle2, Clock3, ListTodo, PauseCircle, Percent } from "lucide-react";
+import { Activity as ActivityIcon, CalendarClock, CheckCircle2, Clock3, ListTodo, PauseCircle, Percent, Repeat2 } from "lucide-react";
 import { Pagination } from "@/components/Pagination";
 import { PageHeader } from "@/components/PageHeader";
 import { DailyActivityChart, TaskStatusChart, WeeklyProgressChart } from "@/components/Charts";
@@ -10,7 +10,7 @@ import { StatCard } from "@/components/StatCard";
 import { tActivityStatus, tAgendaType, tCategory, tPriority, tTaskStatus } from "@/lib/i18n";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { getCountdownChipClassName, getInteractiveSurfaceClassName, getSemanticChipClassName } from "@/lib/ui-state-styles";
-import { buildTodayAgendaItems, cn, formatDate, formatDateWithWeekday, formatTimeRange, getEffectiveTaskStatus, getTaskCountdownState, paginateItems, sortTasksByNearestDeadline, summarizeActivities, summarizeTasks, todayDate } from "@/lib/utils";
+import { buildTodayAgendaItems, cn, formatDate, formatDateWithWeekday, formatTimeRange, getEffectiveTaskStatus, getTaskCountdownState, isRoutineScheduledForDate, paginateItems, sortTasksByNearestDeadline, summarizeActivities, summarizeTasks, todayDate } from "@/lib/utils";
 import { useNow } from "@/lib/use-now";
 
 const dashboardPageSize = 4;
@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const today = todayDate(timeZone);
   const taskSummary = summarizeTasks(tasks, Date.now(), timeZone);
   const activitySummary = summarizeActivities(activities, timeZone);
+  const todayRoutineCount = useMemo(() => routines.filter((routine) => isRoutineScheduledForDate(routine, today)).length, [routines, today]);
   const nearestDeadlineTasks = useMemo(() => sortTasksByNearestDeadline(tasks, timeZone), [tasks, timeZone]);
   const todayAgendaItems = useMemo(() => (now === null ? [] : buildTodayAgendaItems(activities, routines, today, now, timeZone)), [activities, now, routines, timeZone, today]);
   const paginatedTasks = useMemo(() => paginateItems(nearestDeadlineTasks, taskPage, dashboardPageSize), [nearestDeadlineTasks, taskPage]);
@@ -47,6 +48,7 @@ export default function DashboardPage() {
     completed: language === "id" ? "Pekerjaan selesai" : "Completed work",
     pending: language === "id" ? "Pekerjaan tertunda" : "Pending work",
     todayActivities: language === "id" ? "Aktivitas hari ini" : "Today's activities",
+    todayRoutines: language === "id" ? "Rutinitas hari ini" : "Today's routines",
     progress: language === "id" ? "Progress penyelesaian" : "Completion rate",
     nearest: language === "id" ? "Deadline Terdekat" : "Nearest Deadlines",
     deadline: language === "id" ? "Deadline" : "Deadline",
@@ -67,16 +69,21 @@ export default function DashboardPage() {
         <StatCard title={text.inProgress} value={taskSummary.running} href="/tasks?status=Berjalan" icon={Clock3} tone="blue" />
         <StatCard title={text.completed} value={taskSummary.completed} href="/tasks?status=Selesai" icon={CheckCircle2} tone="teal" />
         <StatCard title={text.pending} value={taskSummary.pending} href="/tasks?status=Tertunda" icon={PauseCircle} tone="amber" />
-        <StatCard title={text.todayActivities} value={activitySummary.today} href={`/activities?date=${today}&category=Semua`} icon={ActivityIcon} tone="blue" />
-        <div className="col-span-2 xl:col-span-1">
-          <StatCard title={text.progress} value={`${taskSummary.completionRate}%`} icon={Percent} tone="teal" />
-        </div>
+        <StatCard title={text.todayActivities} value={activitySummary.today} href={"/activities?date=" + today + "&category=Semua"} icon={ActivityIcon} tone="blue" />
+        <StatCard title={text.todayRoutines} value={todayRoutineCount} href="/routines" icon={Repeat2} tone="slate" />
+        <StatCard title={text.progress} value={taskSummary.completionRate + "%"} icon={Percent} tone="teal" />
       </section>
 
-      <section className="grid gap-3 sm:gap-4 xl:grid-cols-3">
-        <TaskStatusChart tasks={tasks} maxLegendItems={4} language={language} timeZone={timeZone} />
-        <DailyActivityChart activities={activities} routines={routines} language={language} timeZone={timeZone} />
-        <WeeklyProgressChart tasks={tasks} language={language} timeZone={timeZone} />
+      <section className="grid items-stretch gap-3 sm:gap-4 xl:grid-cols-3">
+        <div className="min-w-0">
+          <TaskStatusChart tasks={tasks} maxLegendItems={4} language={language} timeZone={timeZone} contentClassName="mt-4 h-80 sm:h-96" />
+        </div>
+        <div className="min-w-0">
+          <DailyActivityChart activities={activities} routines={routines} language={language} timeZone={timeZone} contentClassName="mt-4 h-80 sm:h-96" />
+        </div>
+        <div className="min-w-0">
+          <WeeklyProgressChart tasks={tasks} language={language} timeZone={timeZone} contentClassName="mt-4 h-80 sm:h-96" />
+        </div>
       </section>
 
       <section className="grid gap-3 sm:gap-4 xl:grid-cols-2">

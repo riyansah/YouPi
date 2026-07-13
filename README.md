@@ -32,7 +32,7 @@ On first run, create the local account from `/register`. After that, use `/login
 
 ## Main Menus
 
-- `Dashboard`: mobile-friendly summary cards, compact charts, nearest deadlines, and today's agenda.
+- `Dashboard`: mobile-friendly summary cards, today's activity and routine totals, equal-size chart cards, nearest deadlines, and today's agenda.
 - `Work`: mobile-compact tasks, projects, priorities, status, deadlines, and optional start/end times.
 - `Activities`: one-time activities with date, category, status, filters, and overdue actions.
 - `Routines`: recurring weekly routines.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.61 - 2026-07-13
+
+- Equalized the three dashboard chart cards so Work by Status, Daily Activity Mix, and Weekly Progress use matching dashboard widths and heights.
+
+## 0.7.60 - 2026-07-13
+
+- Added a Today's Routines dashboard card and widened the dashboard Daily Activity Mix and Weekly Progress charts on desktop while aligning the Weekly Progress legend with the daily activity legend.
+
 ## 0.7.59 - 2026-07-12
 
 - Enforced a single active auth session per user so successful login invalidates older sessions while logout keeps clearing the active session.
