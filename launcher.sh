@@ -43,8 +43,10 @@ fi
 
 build_is_stale() {
   local build_id="$ROOT_DIR/.next/BUILD_ID"
+  local standalone_server="$ROOT_DIR/.next/standalone/server.js"
+  local standalone_static="$ROOT_DIR/.next/standalone/.next/static"
 
-  if [ ! -f "$build_id" ]; then
+  if [ ! -f "$build_id" ] || [ ! -f "$standalone_server" ] || [ ! -d "$standalone_static" ]; then
     return 0
   fi
 
@@ -58,10 +60,30 @@ build_is_stale() {
   return 1
 }
 
+DID_BUILD=false
 if build_is_stale; then
   echo "Build produksi belum ada atau source berubah. Menjalankan npm run build..."
   npm run build
+  DID_BUILD=true
+fi
+
+STANDALONE_SERVER="$ROOT_DIR/.next/standalone/server.js"
+SOURCE_STATIC="$ROOT_DIR/.next/static"
+STANDALONE_STATIC="$ROOT_DIR/.next/standalone/.next/static"
+
+if [ ! -f "$STANDALONE_SERVER" ]; then
+  echo "Server standalone tidak ditemukan setelah build." >&2
+  exit 1
+fi
+
+if [ "$DID_BUILD" = true ] || [ ! -d "$STANDALONE_STATIC" ]; then
+  if [ ! -d "$SOURCE_STATIC" ]; then
+    echo "Aset statis produksi tidak ditemukan setelah build." >&2
+    exit 1
+  fi
+  mkdir -p "$STANDALONE_STATIC"
+  cp -R "$SOURCE_STATIC/." "$STANDALONE_STATIC/"
 fi
 
 echo "Menjalankan dashboard cepat di http://$HOST:$PORT"
-npm run start -- --hostname "$HOST" --port "$PORT"
+HOSTNAME="$HOST" PORT="$PORT" npm run start

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { NextRequest } from "next/server";
 import { defaultSettings } from "../lib/data";
+import { MAX_DASHBOARD_BACKUP_BYTES, type DashboardBackup } from "../lib/storage";
 
 test("authenticated REST API supports resources, read-only menus, backup, and reset", async () => {
   const previousSqlitePath = process.env.SQLITE_PATH;
@@ -97,9 +98,31 @@ test("authenticated REST API supports resources, read-only menus, backup, and re
     assert.equal(customReport.filteredActivities.length, 1);
     assert.equal((await json<unknown[]>(await history.GET(req("/api/history")))).length > 0, true);
 
-    const exported = await json<{ version: number; tasks: unknown[]; settings: typeof defaultSettings }>(await backup.GET(req("/api/backup")));
+    const exported = await json<DashboardBackup>(await backup.GET(req("/api/backup")));
     assert.equal(exported.version, 6);
     assert.equal(exported.tasks.length, 1);
+
+    const dataOnlyPayload = {
+      tasks: exported.tasks,
+      activities: exported.activities,
+      routines: exported.routines,
+      notes: exported.notes,
+      history: exported.history,
+      settings: exported.settings
+    };
+    const missingMetadataResponse = await backup.PUT(req("/api/backup", { method: "PUT", body: JSON.stringify(dataOnlyPayload) }));
+    assert.equal(missingMetadataResponse.status, 400);
+
+    const oversizedResponse = await backup.PUT(req("/api/backup", {
+      method: "PUT",
+      headers: { "content-length": String(MAX_DASHBOARD_BACKUP_BYTES + 1) },
+      body: "{}"
+    }));
+    assert.equal(oversizedResponse.status, 413);
+
+    const dataAfterRejectedRestore = await json<DashboardBackup>(await backup.GET(req("/api/backup")));
+    assert.equal(dataAfterRejectedRestore.tasks.length, 1);
+    assert.equal(dataAfterRejectedRestore.tasks[0].id, exported.tasks[0].id);
 
     const deletedTask = await json<{ ok: boolean; notes: Array<{ id: string; linkedType: string | null; linkedId: string | null }> }>(await taskById.DELETE(req("/api/tasks/" + task.id, { method: "DELETE" }), { params: Promise.resolve({ id: task.id }) }));
     assert.equal(deletedTask.ok, true);

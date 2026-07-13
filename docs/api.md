@@ -105,6 +105,8 @@ curl -b cookie.jar -X PUT http://127.0.0.1:3000/api/backup \
   --data-binary @youpi-backup.json
 ```
 
+The restore payload must include `version`, `exportedAt`, `tasks`, `activities`, and `settings`; `routines` (v2+), `notes` (v4+), and `history` (v5+) are required and validated according to the backup version. Backup versions 1-6 are supported, requests are limited to 25 MiB, and a successful restore replaces dashboard data in one database transaction. The Settings UI downloads a safety backup of current data before sending the restore request.
+
 Reset dashboard data and settings:
 
 ```bash
@@ -118,4 +120,5 @@ curl -b cookie.jar -X POST http://127.0.0.1:3000/api/dashboard/reset
 - `400`: invalid payload or validation failure.
 - `401`: missing or invalid session.
 - `404`: resource not found.
+- `413`: backup restore payload exceeds 25 MiB.
 - `429`: login lockout.

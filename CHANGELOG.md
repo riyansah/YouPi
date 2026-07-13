@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.63 - 2026-07-13
+
+- Fixed local production startup to use the generated standalone server and preserve its static assets, preventing development output from corrupting login and API routes.
+
+## 0.7.62 - 2026-07-13
+
+- Fixed Settings restore requests so they preserve required backup metadata and can restore valid exported files successfully.
+- Added restore previews, progress states, automatic pre-restore safety downloads, and a separate reset-data section.
+- Added a 25 MB restore limit plus strict backup version, timestamp, date, time, duplicate ID, and linked-note validation with localized errors.
+
 ## 0.7.61 - 2026-07-13
 
 - Equalized the three dashboard chart cards so Work by Status, Daily Activity Mix, and Weekly Progress use matching dashboard widths and heights.

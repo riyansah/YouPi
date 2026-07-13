@@ -5,7 +5,7 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { defaultSettings } from "@/lib/data";
 import { LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 import { sortNotes } from "@/lib/notes";
-import { normalizeDashboardSettings } from "@/lib/storage";
+import { normalizeDashboardSettings, type DashboardBackup } from "@/lib/storage";
 import { normalizeActivitiesForTime, normalizeTasksForTime } from "@/lib/utils";
 import type { Activity, DashboardSettings, HistoryEvent, Note, Routine, Task } from "@/lib/types";
 
@@ -48,7 +48,7 @@ interface DashboardDataContextValue extends DashboardData {
   createNote: (note: NewNote) => Promise<Note>;
   updateNote: (id: string, patch: Partial<Note>) => Promise<Note>;
   deleteNote: (id: string) => Promise<void>;
-  replaceDashboardData: (data: DashboardData) => Promise<void>;
+  restoreDashboardBackup: (backup: DashboardBackup) => Promise<void>;
   resetDashboardData: () => Promise<void>;
 }
 
@@ -380,8 +380,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [loaded, settings.timeZone, updateActivity, updateTask]);
 
-  const replaceDashboardData = useCallback(async (data: DashboardData) => {
-    const saved = await requestJson<DashboardData>("/api/backup", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  const restoreDashboardBackup = useCallback(async (backup: DashboardBackup) => {
+    const saved = await requestJson<DashboardData>("/api/backup", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(backup) });
     applyDashboardData(saved);
   }, [applyDashboardData, requestJson]);
 
@@ -416,10 +416,10 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       setHistory,
       settings,
       setSettings,
-      replaceDashboardData,
+      restoreDashboardBackup,
       resetDashboardData
     }),
-    [activities, createActivity, createNote, createRoutine, createTask, deleteActivity, deleteNote, deleteRoutine, deleteTask, history, notes, replaceDashboardData, resetDashboardData, routines, setActivities, setHistory, setNotes, setRoutines, setSettings, setTasks, settings, tasks, updateActivity, updateNote, updateRoutine, updateTask]
+    [activities, createActivity, createNote, createRoutine, createTask, deleteActivity, deleteNote, deleteRoutine, deleteTask, history, notes, restoreDashboardBackup, resetDashboardData, routines, setActivities, setHistory, setNotes, setRoutines, setSettings, setTasks, settings, tasks, updateActivity, updateNote, updateRoutine, updateTask]
   );
 
   if (!loaded) {

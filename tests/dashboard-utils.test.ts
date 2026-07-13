@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { defaultActivities, defaultNotes, defaultRoutines, defaultSettings, defaultTasks } from "../lib/data";
@@ -17,7 +17,7 @@ import {
   getReportPdfFilename,
   reportCsvColumns
 } from "../lib/report-export";
-import { createDashboardBackup, parseDashboardBackup } from "../lib/storage";
+import { createDashboardBackup, getDashboardBackupErrorMessage, parseDashboardBackup } from "../lib/storage";
 import { APP_DEFAULT_TIME_ZONE, zonedDateTimeToTimestamp } from "../lib/time";
 import {
   activityCategoryChartData,
@@ -722,6 +722,7 @@ test("dashboard backup round-trips valid local data", () => {
   assert.equal(parsed.ok, true);
 
   if (parsed.ok) {
+    assert.equal(parsed.sourceVersion, 6);
     assert.equal(parsed.backup.tasks.length, defaultTasks.length);
     assert.equal(parsed.backup.activities.length, defaultActivities.length);
     assert.equal(parsed.backup.routines.length, defaultRoutines.length);
@@ -730,6 +731,13 @@ test("dashboard backup round-trips valid local data", () => {
     assert.equal("accountName" in parsed.backup.settings, false);
     assert.equal("accountEmail" in parsed.backup.settings, false);
   }
+});
+
+test("sample dashboard backup passes current restore validation", () => {
+  const sample = readFileSync(join(process.cwd(), "docs", "sample-backup-project-manager-2026-07.json"), "utf8");
+  const parsed = parseDashboardBackup(sample);
+
+  assert.equal(parsed.ok, true);
 });
 
 test("dashboard backup does not require local account fields", () => {
@@ -790,6 +798,7 @@ test("dashboard backup keeps compatibility with v1 data", () => {
   assert.equal(parsed.ok, true);
 
   if (parsed.ok) {
+    assert.equal(parsed.sourceVersion, 1);
     assert.deepEqual(parsed.backup.routines, []);
     assert.deepEqual(parsed.backup.notes, []);
   }
@@ -851,7 +860,76 @@ test("dashboard backup rejects invalid routine shape", () => {
 
   const parsed = parseDashboardBackup(JSON.stringify(invalid));
 
-  assert.deepEqual(parsed, { ok: false, error: "Isi backup tidak valid." });
+  assert.deepEqual(parsed, { ok: false, issue: { code: "invalid-item", section: "routines", index: 0 } });
+});
+
+test("dashboard backup rejects invalid timestamps, dates, times, and duplicate ids", () => {
+  const backup = createDashboardBackup(
+    defaultTasks,
+    defaultActivities,
+    defaultRoutines,
+    defaultNotes,
+    defaultSettings,
+    "2026-06-24T00:00:00.000Z"
+  );
+
+  assert.deepEqual(
+    parseDashboardBackup(JSON.stringify({ ...backup, exportedAt: "2026-06-24" })),
+    { ok: false, issue: { code: "invalid-exported-at" } }
+  );
+  assert.deepEqual(
+    parseDashboardBackup(JSON.stringify({ ...backup, tasks: [{ ...backup.tasks[0], startDate: "2026-02-30" }] })),
+    { ok: false, issue: { code: "invalid-item", section: "tasks", index: 0 } }
+  );
+  assert.deepEqual(
+    parseDashboardBackup(JSON.stringify({ ...backup, activities: [{ ...backup.activities[0], startTime: "25:00" }] })),
+    { ok: false, issue: { code: "invalid-item", section: "activities", index: 0 } }
+  );
+  assert.deepEqual(
+    parseDashboardBackup(JSON.stringify({ ...backup, tasks: [...backup.tasks, { ...backup.tasks[0] }] })),
+    { ok: false, issue: { code: "duplicate-id", section: "tasks", index: backup.tasks.length } }
+  );
+
+  const endOnlyTime = parseDashboardBackup(JSON.stringify({
+    ...backup,
+    tasks: [{ ...backup.tasks[0], startTime: null, endTime: "10:00" }]
+  }));
+  assert.equal(endOnlyTime.ok, true);
+});
+
+test("dashboard backup rejects broken note links with localized details", () => {
+  const backup = createDashboardBackup(
+    defaultTasks,
+    defaultActivities,
+    defaultRoutines,
+    defaultNotes,
+    defaultSettings,
+    "2026-06-24T00:00:00.000Z"
+  );
+  const parsed = parseDashboardBackup(JSON.stringify({
+    ...backup,
+    notes: [{
+      id: "note-invalid-link",
+      title: "Broken link",
+      content: "Missing linked item",
+      category: "work",
+      linkedType: "work",
+      linkedId: "missing-task",
+      tags: [],
+      isPinned: false,
+      createdAt: "2026-06-24T00:00:00.000Z",
+      updatedAt: "2026-06-24T00:00:00.000Z"
+    }]
+  }));
+
+  assert.deepEqual(parsed, { ok: false, issue: { code: "invalid-note-link", section: "notes", index: 0 } });
+  if (!parsed.ok) {
+    assert.equal(getDashboardBackupErrorMessage(parsed.issue, "id"), "Relasi catatan ke-1 tidak menunjuk data yang tersedia dalam backup.");
+    assert.equal(getDashboardBackupErrorMessage(parsed.issue, "en"), "Note 1 links to data that is not available in this backup.");
+  }
+
+  const malformed = parseDashboardBackup("{");
+  assert.deepEqual(malformed, { ok: false, issue: { code: "invalid-json" } });
 });
 
 test("navigation routes have matching app pages", () => {

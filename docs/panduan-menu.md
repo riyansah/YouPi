@@ -141,7 +141,7 @@ Di halaman ini pengguna bisa:
 - memilih bahasa antarmuka `English` atau `Indonesia`,
 - memilih tema `Light`, `Dark`, atau `System`,
 - mengatur kategori aktivitas preferensi,
-- mengekspor dan mengimpor backup JSON,
+- mengunduh backup JSON serta mempreview dan memulihkan backup versi 1-6 dengan backup pengaman otomatis,
 - mereset data work, activities, routines, notes, dan history,
 - membuka halaman ubah password.
 

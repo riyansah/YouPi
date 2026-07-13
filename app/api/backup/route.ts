@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, jsonError, readJsonRecord } from "@/lib/server/api";
+import { authenticateRequest, jsonError } from "@/lib/server/api";
 import { getDashboardData, replaceDashboardData } from "@/lib/server/dashboard-db";
 import { logWithContext, withRequestContext } from "@/lib/server/request-context";
-import { createDashboardBackup, parseDashboardBackup } from "@/lib/storage";
+import {
+  createDashboardBackup,
+  getDashboardBackupErrorMessage,
+  MAX_DASHBOARD_BACKUP_BYTES,
+  parseDashboardBackup
+} from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -18,11 +23,24 @@ export const PUT = withRequestContext(async function PUT(request: NextRequest) {
   const auth = authenticateRequest(request);
   if (!auth.ok) return auth.response;
 
-  const body = await readJsonRecord(request);
-  if (!body) return jsonError("Payload data tidak valid.");
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_DASHBOARD_BACKUP_BYTES) {
+    return jsonError(getDashboardBackupErrorMessage({ code: "file-too-large" }, "id"), 413);
+  }
 
-  const parsed = parseDashboardBackup(JSON.stringify(body));
-  if (!parsed.ok) return jsonError(parsed.error);
+  let body: string;
+  try {
+    body = await request.text();
+  } catch {
+    return jsonError(getDashboardBackupErrorMessage({ code: "invalid-json" }, "id"));
+  }
+
+  if (new TextEncoder().encode(body).byteLength > MAX_DASHBOARD_BACKUP_BYTES) {
+    return jsonError(getDashboardBackupErrorMessage({ code: "file-too-large" }, "id"), 413);
+  }
+
+  const parsed = parseDashboardBackup(body);
+  if (!parsed.ok) return jsonError(getDashboardBackupErrorMessage(parsed.issue, "id"));
 
   replaceDashboardData({
     tasks: parsed.backup.tasks,

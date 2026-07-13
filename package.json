@@ -1,12 +1,12 @@
 {
   "name": "personal-activity-dashboard",
-  "version": "0.7.61",
+  "version": "0.7.63",
   "private": true,
   "scripts": {
     "dev": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/next/dist/bin/next dev",
     "setup": "./launcher.sh",
     "build": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/next/dist/bin/next build",
-    "start": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/next/dist/bin/next start",
+    "start": "TZ=Asia/Jakarta ./scripts/node.sh ./.next/standalone/server.js",
     "typecheck": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/typescript/bin/tsc --noEmit --project tsconfig.typecheck.json",
     "test": "TZ=Asia/Jakarta ./scripts/node.sh ./node_modules/tsx/dist/cli.mjs --test tests/*.test.ts",
     "prepare:commit": "npm run test && npm run lint && npm run typecheck && npm run build",

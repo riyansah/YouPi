@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "YouPi REST API",
-    "version": "0.7.51"
+    "version": "0.7.63"
   },
   "servers": [
     {
@@ -353,6 +353,60 @@
           },
           "createdAt": {
             "type": "string"
+          }
+        }
+      },
+      "DashboardBackup": {
+        "type": "object",
+        "description": "Versions 1-6 are supported. Routines are required for v2+, notes for v4+, and history for v5+.",
+        "required": [
+          "version",
+          "exportedAt",
+          "tasks",
+          "activities",
+          "settings"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "enum": [1, 2, 3, 4, 5, 6]
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            }
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            }
+          },
+          "routines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Routine"
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryEvent"
+            }
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Settings"
           }
         }
       },
@@ -1145,18 +1199,39 @@
         "summary": "Export backup",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Current dashboard data as a version 6 backup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardBackup"
+                }
+              }
+            }
           }
         }
       },
       "put": {
         "summary": "Restore backup",
+        "description": "Validates backup versions 1-6 up to 25 MiB and atomically replaces dashboard data.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardBackup"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Restored dashboard data"
           },
           "400": {
             "description": "Invalid backup"
+          },
+          "413": {
+            "description": "Backup exceeds 25 MiB"
           }
         }
       }
