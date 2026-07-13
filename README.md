@@ -1,3 +1,4 @@
+<img width="1353" height="1033" alt="image" src="https://github.com/user-attachments/assets/a32d356a-b933-41f8-a65f-689e0a8526c0" />
 <h1 align="center">YouPi</h1>
 
 <p align="center">
