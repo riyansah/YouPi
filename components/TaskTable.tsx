@@ -1,6 +1,7 @@
 "use client";
 
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, ListFilter, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { QuickStatusActions } from "@/components/QuickStatusActions";
 import { getCountdownChipClassName, getIconButtonClassName, getSemanticChipClassName } from "@/lib/ui-state-styles";
 import type { Task, TaskStatus, AppLanguage } from "@/lib/types";
@@ -42,6 +43,7 @@ const countdownToneStyles = {
 export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange, language = "id", timeZone }: TaskTableProps) {
   const text = {
     empty: language === "id" ? "Tidak ada pekerjaan sesuai filter." : "No work items match the current filters.",
+    emptyHint: language === "id" ? "Ubah filter atau tambahkan pekerjaan baru agar rencana berikutnya terlihat di sini." : "Adjust the filters or add a new work item to see your next plan here.",
     work: language === "id" ? "Pekerjaan" : "Work",
     status: language === "id" ? "Status" : "Status",
     priority: language === "id" ? "Prioritas" : "Priority",
@@ -55,15 +57,11 @@ export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange, langua
   };
 
   if (!tasks.length) {
-    return (
-      <div className="rounded border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300">
-        {text.empty}
-      </div>
-    );
+    return <EmptyState icon={ListFilter} title={text.empty} description={text.emptyHint} />;
   }
 
   return (
-    <div className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-900/95">
       <div className="space-y-3 p-3 md:hidden">
         {tasks.map((task) => {
           const effectiveStatus = getEffectiveTaskStatus(task, now ?? Date.now(), timeZone);
@@ -72,7 +70,7 @@ export function TaskTable({ tasks, now, onEdit, onDelete, onStatusChange, langua
           const timeRange = task.endTime ? formatTimeRange(task.startTime || "00:00", task.endTime) : "-";
 
           return (
-            <article key={task.id} className="rounded border border-slate-200 p-3 dark:border-slate-700">
+            <article key={task.id} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-950 dark:text-slate-50">{task.title}</p>

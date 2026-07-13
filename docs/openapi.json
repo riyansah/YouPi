@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "YouPi REST API",
-    "version": "0.7.63"
+    "version": "0.7.65"
   },
   "servers": [
     {
@@ -519,6 +519,201 @@
     }
   },
   "paths": {
+    "/api/auth/status": {
+      "get": {
+        "security": [],
+        "summary": "Read registration and session status",
+        "responses": {
+          "200": {
+            "description": "Current auth status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "registered",
+                    "authenticated",
+                    "user"
+                  ],
+                  "properties": {
+                    "registered": {
+                      "type": "boolean"
+                    },
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "user": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "security": [],
+        "summary": "Create the single local account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account created"
+          },
+          "400": {
+            "description": "Invalid credentials"
+          },
+          "409": {
+            "description": "Account already exists"
+          },
+          "413": {
+            "description": "Request body exceeds 8 KiB"
+          },
+          "415": {
+            "description": "JSON content type required"
+          },
+          "429": {
+            "description": "Registration rate limited"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "get": {
+        "security": [],
+        "summary": "Read login lockout status",
+        "responses": {
+          "200": {
+            "description": "Current lockout status"
+          }
+        }
+      },
+      "post": {
+        "security": [],
+        "summary": "Create an authenticated session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session created"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "409": {
+            "description": "No account registered"
+          },
+          "413": {
+            "description": "Request body exceeds 8 KiB"
+          },
+          "415": {
+            "description": "JSON content type required"
+          },
+          "429": {
+            "description": "Login locked"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "security": [],
+        "summary": "Invalidate the current session",
+        "responses": {
+          "200": {
+            "description": "Session cleared"
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "summary": "Change the authenticated account password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentPassword",
+                  "newPassword",
+                  "confirmPassword"
+                ],
+                "properties": {
+                  "currentPassword": {
+                    "type": "string"
+                  },
+                  "newPassword": {
+                    "type": "string"
+                  },
+                  "confirmPassword": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed"
+          },
+          "400": {
+            "description": "Invalid password payload"
+          },
+          "401": {
+            "description": "Unauthorized or current password invalid"
+          }
+        }
+      }
+    },
     "/api/tasks": {
       "get": {
         "summary": "List tasks",
@@ -1079,6 +1274,45 @@
         }
       }
     },
+    "/api/notes/unlink": {
+      "post": {
+        "summary": "Unlink notes from a resource",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "linkedType",
+                  "linkedId"
+                ],
+                "properties": {
+                  "linkedType": {
+                    "enum": [
+                      "work",
+                      "activity",
+                      "routine"
+                    ]
+                  },
+                  "linkedId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notes unlinked"
+          },
+          "400": {
+            "description": "Invalid payload"
+          }
+        }
+      }
+    },
     "/api/settings": {
       "get": {
         "summary": "Read settings",
@@ -1127,6 +1361,55 @@
     "/api/schedule": {
       "get": {
         "summary": "Schedule items",
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "today",
+                "week",
+                "month",
+                "agenda"
+              ],
+              "default": "today"
+            }
+          },
+          {
+            "name": "anchorDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "all",
+                "work",
+                "activity",
+                "routine"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "all",
+                "upcoming",
+                "done",
+                "missed"
+              ],
+              "default": "all"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -1137,6 +1420,47 @@
     "/api/reports": {
       "get": {
         "summary": "Report export model",
+        "parameters": [
+          {
+            "name": "selectedDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "Harian",
+                "Mingguan",
+                "Bulanan",
+                "Kustom"
+              ],
+              "default": "Mingguan"
+            }
+          },
+          {
+            "name": "rangeFrom",
+            "in": "query",
+            "description": "Start date used when period is Kustom.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "rangeTo",
+            "in": "query",
+            "description": "End date used when period is Kustom.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",

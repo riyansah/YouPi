@@ -141,7 +141,7 @@ export function AppFeedbackProvider({ children }: { children: ReactNode }) {
     <AppFeedbackContext.Provider value={value}>
       {children}
 
-      <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-3 px-4 sm:px-0">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-50 mx-auto flex w-full max-w-sm flex-col gap-3 px-4 sm:left-auto sm:right-4 sm:mx-0 sm:px-0 lg:bottom-4">
         {toasts.map((toast) => (
           <div key={toast.id} className={cn(getFeedbackPanelClassName("toast"), getSemanticToneClassName(toastToneStyles[toast.tone]), "pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 text-left")}>
             <ToastIcon tone={toast.tone} />

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.65 - 2026-07-13
+
+- Reframed the Dashboard around a focus-first hero with the nearest deadline, current WIB time, and direct work, activity, and schedule actions.
+- Refined shared cards, charts, buttons, chips, page headings, shadows, spacing, and motion into a calmer slate-teal visual system with reduced-motion support.
+- Grouped desktop navigation, added a compact mobile bottom navigation, and kept quick actions and feedback clear of the new mobile navigation area.
+- Replaced blank loading and filter results with a dashboard skeleton and more informative empty states across key work and activity views.
+
+## 0.7.64 - 2026-07-13
+
+- Made automatic timed-status persistence server-first with per-item locking, recovery, and retry-safe failure handling.
+- Made note mutations and their history events atomic while keeping file logging best-effort when the log destination is unavailable.
+- Limited public login and registration JSON bodies to 8 KiB, required JSON content types, and switched the production container to a non-root runtime user with writable cache and documented legacy-volume migration.
+- Completed the VPS deployment guide, refreshed menu and API documentation, expanded OpenAPI coverage, and added CI checks for API and release-version drift.
+- Added a production HTTP E2E smoke flow for authentication, middleware redirects, task CRUD, backup restore, logout, server-rendered pages, and standalone static assets.
+
 ## 0.7.63 - 2026-07-13
 
 - Fixed local production startup to use the generated standalone server and preserve its static assets, preventing development output from corrupting login and API routes.

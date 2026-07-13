@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BriefcaseBusiness, CalendarDays, Menu, NotebookPen, Plus, Repeat2, X } from "lucide-react";
 import { ActivityOverdueNotifier } from "@/components/ActivityOverdueNotifier";
 import { AppFeedbackProvider, useAppFeedback } from "@/components/AppFeedback";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Sidebar } from "@/components/Sidebar";
 import { DashboardDataProvider, useDashboardStore } from "@/lib/dashboard-store";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/i18n";
@@ -38,7 +39,7 @@ function GlobalQuickActions() {
     setOpen(false);
   }, [pathname, searchParams]);
 
-  const bottomOffset = useMemo(() => 16 + activeToastCount * 88, [activeToastCount]);
+  const bottomOffset = useMemo(() => 88 + activeToastCount * 88, [activeToastCount]);
   const actions = quickActions(settings.language);
 
   function handleAction(href: string) {
@@ -57,7 +58,7 @@ function GlobalQuickActions() {
   return (
     <>
       {open ? <button type="button" aria-label={settings.language === "id" ? "Tutup menu aksi cepat" : "Close quick actions"} className="fixed inset-0 z-30 lg:hidden" onClick={() => setOpen(false)} /> : null}
-      <div className="fixed right-4 z-40 lg:hidden" style={{ bottom: String(bottomOffset) + "px" }}>
+      <div className="fixed right-4 z-40 lg:hidden" style={{ bottom: `calc(${bottomOffset}px + env(safe-area-inset-bottom))` }}>
         <div className="flex flex-col items-end gap-3">
           {open
             ? actions.map((action) => {
@@ -81,7 +82,7 @@ function GlobalQuickActions() {
           <button
             type="button"
             onClick={() => setOpen((current) => !current)}
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal-700 text-white shadow-xl transition hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500"
+            className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-teal-700 text-white shadow-xl transition hover:bg-teal-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:bg-teal-600 dark:hover:bg-teal-500 dark:focus-visible:ring-offset-slate-950"
             aria-label={open ? (settings.language === "id" ? "Tutup aksi cepat" : "Close quick actions") : settings.language === "id" ? "Buka aksi cepat" : "Open quick actions"}
             aria-expanded={open}
           >
@@ -173,10 +174,10 @@ function AuthenticatedShell({ children }: LayoutProps) {
   const { settings } = useDashboardStore();
 
   return (
-    <div className="min-h-screen bg-[#f6f7fb] lg:flex dark:bg-slate-950">
+    <div className="app-shell min-h-screen lg:flex">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 lg:hidden">
+        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/90 lg:hidden">
           <button
             type="button"
             className={getOutlineButtonClassName() + " h-10 w-10 justify-center px-0"}
@@ -195,8 +196,9 @@ function AuthenticatedShell({ children }: LayoutProps) {
         </header>
         <ActivityOverdueNotifier />
         <IdleLogoutController />
-        <GlobalQuickActions />
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        {!sidebarOpen ? <GlobalQuickActions /> : null}
+        <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-8 lg:pt-8">{children}</main>
+        <MobileBottomNav />
       </div>
     </div>
   );

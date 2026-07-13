@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeAuthUsername, validateAuthPassword, validateAuthUsername } from "@/lib/auth-validation";
 import { checkRateLimit, getClientIp, hasRegisteredUser, registerUser, resetRateLimit } from "@/lib/server/auth";
-import { logWithContext, parseJsonBody, setRequestActor, setRequestMetadata, withRequestContext } from "@/lib/server/request-context";
+import { JsonBodyError, logWithContext, parseJsonBody, setRequestActor, setRequestMetadata, withRequestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
+
+const authJsonBodyMaxBytes = 8 * 1024;
+
+function jsonBodyErrorResponse(error: JsonBodyError) {
+  const message = error.code === "payload_too_large"
+    ? "Payload JSON terlalu besar. Batas maksimum 8 KiB."
+    : "Content-Type harus application/json.";
+  return NextResponse.json({ code: error.code, error: message }, { status: error.status });
+}
 
 function isRegisterBody(value: unknown): value is { username: string; password: string } {
   return (
@@ -47,7 +56,18 @@ export const POST = withRequestContext(async function POST(request: NextRequest)
     return NextResponse.json({ code: "rate_limited", error: "Terlalu banyak percobaan register. Coba lagi beberapa menit lagi." }, { status: 429 });
   }
 
-  const body = (await parseJsonBody<{ username: string; password: string }>(request)) as unknown;
+  let body: unknown;
+  try {
+    body = await parseJsonBody<{ username: string; password: string }>(request, {
+      maxBytes: authJsonBodyMaxBytes,
+      requireJsonContentType: true
+    });
+  } catch (error) {
+    if (error instanceof JsonBodyError) {
+      return jsonBodyErrorResponse(error);
+    }
+    throw error;
+  }
 
   if (!isRegisterBody(body)) {
     logWithContext({

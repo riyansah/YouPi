@@ -4,6 +4,20 @@ YouPi uses the same single-user session cookie as the web UI. Agents should log 
 
 ## Auth
 
+Check whether the local account exists:
+
+```bash
+curl http://127.0.0.1:3000/api/auth/status
+```
+
+Create the single local account once:
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"owner","password":"Password1"}'
+```
+
 Login and store the cookie:
 
 ```bash
@@ -19,6 +33,8 @@ curl -b cookie.jar http://127.0.0.1:3000/api/tasks
 ```
 
 A missing or invalid session returns `401 {"error":"Unauthorized"}`.
+
+`POST /api/auth/logout` invalidates the active session. Authenticated users can change their password through `POST /api/auth/change-password` with `currentPassword`, `newPassword`, and `confirmPassword`. Login and registration require `Content-Type: application/json` and reject bodies larger than 8 KiB.
 
 ## Resource CRUD
 
@@ -72,6 +88,8 @@ curl -b cookie.jar -X POST http://127.0.0.1:3000/api/notes \
 
 `PATCH /api/notes/{id}` accepts note fields. `DELETE /api/notes/{id}` removes the note.
 
+`POST /api/notes/unlink` accepts `linkedType` and `linkedId` to unlink every note from one work, activity, or routine target.
+
 ### Settings
 
 `GET /api/settings` returns dashboard preferences. `PATCH /api/settings` accepts `dashboardName`, `theme`, `language`, and `timeZone`.
@@ -85,8 +103,8 @@ curl -b cookie.jar -X PATCH http://127.0.0.1:3000/api/settings \
 ## Read-Only Menus
 
 - `GET /api/dashboard`: dashboard summaries, agenda, and chart series.
-- `GET /api/schedule?view=today|week|month|agenda&anchorDate=YYYY-MM-DD&source=all|work|activity|routine&status=all|upcoming|done|missed`: schedule items and summary.
-- `GET /api/reports?selectedDate=YYYY-MM-DD&period=Harian|Mingguan|Bulanan`: report export model.
+- `GET /api/schedule?view=today|week|month|agenda&anchorDate=YYYY-MM-DD&source=all|work|activity|routine&status=all|upcoming|done|missed`: schedule items and summary. All query parameters are optional.
+- `GET /api/reports?selectedDate=YYYY-MM-DD&period=Harian|Mingguan|Bulanan|Kustom&rangeFrom=YYYY-MM-DD&rangeTo=YYYY-MM-DD`: report export model. `rangeFrom` and `rangeTo` are used for `period=Kustom`.
 - `GET /api/history` and `GET /api/history/{id}`: audit history. History is read-only.
 
 ## Data Management
@@ -120,5 +138,6 @@ curl -b cookie.jar -X POST http://127.0.0.1:3000/api/dashboard/reset
 - `400`: invalid payload or validation failure.
 - `401`: missing or invalid session.
 - `404`: resource not found.
-- `413`: backup restore payload exceeds 25 MiB.
+- `413`: auth payload exceeds 8 KiB or backup restore payload exceeds 25 MiB.
+- `415`: login or registration body is not JSON.
 - `429`: login lockout.

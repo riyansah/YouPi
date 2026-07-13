@@ -220,7 +220,16 @@ export function createLogger(options: LoggerOptions = {}) {
         stdoutWriter(line);
       }
 
-      appendFileSync(resolveFilePath(current), `${JSON.stringify(payload)}\n`, "utf8");
+      try {
+        appendFileSync(resolveFilePath(current), `${JSON.stringify(payload)}\n`, "utf8");
+      } catch {
+        try {
+          stderrWriter(`[${formatConsoleTimestamp(current)} WIB] WARN ERROR logger.file_write_failed - Gagal menulis log ke file`);
+        } catch {
+          // File logging is best-effort and must not affect the application flow.
+        }
+      }
+
       return payload;
     }
   };

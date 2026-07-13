@@ -574,20 +574,28 @@ export function getNoteById(id: string) {
 }
 
 export function createNote(note: Note) {
+  const db = getDatabase();
   const current = getDashboardData(false);
   const position = current.notes.length;
   const row = noteToRow(note);
-  getDatabase()
-    .prepare(`
-      INSERT INTO notes (
-        id, title, content, category, linked_type, linked_id, tags_json, is_pinned, position, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    .run(row.id, row.title, row.content, row.category, row.linkedType, row.linkedId, row.tagsJson, row.isPinned, position, row.createdAt, row.updatedAt);
 
-  const next = getDashboardData(false);
-  appendHistoryEvents(buildDashboardHistoryEvents(current, next, { existingMissedKeys: getExistingMissedKeys() }));
-  return note;
+  db.exec("BEGIN");
+  try {
+    db.prepare(`
+        INSERT INTO notes (
+          id, title, content, category, linked_type, linked_id, tags_json, is_pinned, position, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(row.id, row.title, row.content, row.category, row.linkedType, row.linkedId, row.tagsJson, row.isPinned, position, row.createdAt, row.updatedAt);
+
+    const next = getDashboardData(false);
+    appendHistoryEvents(buildDashboardHistoryEvents(current, next, { existingMissedKeys: getExistingMissedKeys() }));
+    db.exec("COMMIT");
+    return note;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 export function updateNote(id: string, patch: Partial<Note>) {
@@ -596,6 +604,7 @@ export function updateNote(id: string, patch: Partial<Note>) {
     return null;
   }
 
+  const db = getDatabase();
   const before = getDashboardData(false);
   const next: Note = {
     ...currentNote,
@@ -604,17 +613,24 @@ export function updateNote(id: string, patch: Partial<Note>) {
     updatedAt: patch.updatedAt || currentNote.updatedAt
   };
   const row = noteToRow(next);
-  getDatabase()
-    .prepare(`
-      UPDATE notes
-      SET title = ?, content = ?, category = ?, linked_type = ?, linked_id = ?, tags_json = ?, is_pinned = ?, created_at = ?, updated_at = ?
-      WHERE id = ?
-    `)
-    .run(row.title, row.content, row.category, row.linkedType, row.linkedId, row.tagsJson, row.isPinned, row.createdAt, row.updatedAt, id);
 
-  const after = getDashboardData(false);
-  appendHistoryEvents(buildDashboardHistoryEvents(before, after, { existingMissedKeys: getExistingMissedKeys() }));
-  return next;
+  db.exec("BEGIN");
+  try {
+    db.prepare(`
+        UPDATE notes
+        SET title = ?, content = ?, category = ?, linked_type = ?, linked_id = ?, tags_json = ?, is_pinned = ?, created_at = ?, updated_at = ?
+        WHERE id = ?
+      `)
+      .run(row.title, row.content, row.category, row.linkedType, row.linkedId, row.tagsJson, row.isPinned, row.createdAt, row.updatedAt, id);
+
+    const after = getDashboardData(false);
+    appendHistoryEvents(buildDashboardHistoryEvents(before, after, { existingMissedKeys: getExistingMissedKeys() }));
+    db.exec("COMMIT");
+    return next;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 export function deleteNote(id: string) {
@@ -623,12 +639,21 @@ export function deleteNote(id: string) {
     return false;
   }
 
+  const db = getDatabase();
   const before = getDashboardData(false);
-  getDatabase().prepare("DELETE FROM notes WHERE id = ?").run(id);
-  replaceNotes(getNotes());
-  const after = getDashboardData(false);
-  appendHistoryEvents(buildDashboardHistoryEvents(before, after, { existingMissedKeys: getExistingMissedKeys() }));
-  return true;
+
+  db.exec("BEGIN");
+  try {
+    db.prepare("DELETE FROM notes WHERE id = ?").run(id);
+    replaceNotes(getNotes());
+    const after = getDashboardData(false);
+    appendHistoryEvents(buildDashboardHistoryEvents(before, after, { existingMissedKeys: getExistingMissedKeys() }));
+    db.exec("COMMIT");
+    return true;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 export function unlinkNotesByTarget(linkedType: Exclude<NoteLinkedType, null>, linkedId: string) {

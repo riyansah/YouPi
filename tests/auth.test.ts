@@ -12,6 +12,29 @@ test("database auth handles sessions, register rate limits, and staged login loc
 
   try {
     const auth = await import("../lib/server/auth");
+    const register = await import("../app/api/auth/register/route");
+
+    function registerRequest(body: string, contentType: string) {
+      return new NextRequest(new URL("/api/auth/register", "http://localhost"), {
+        method: "POST",
+        headers: new Headers({ "content-type": contentType }),
+        body
+      });
+    }
+
+    const unsupportedMedia = await register.POST(registerRequest(
+      JSON.stringify({ username: "owner", password: "Password1" }),
+      "text/plain"
+    ));
+    assert.equal(unsupportedMedia.status, 415);
+    assert.equal(((await unsupportedMedia.json()) as { code: string }).code, "unsupported_media_type");
+
+    const oversizedPayload = await register.POST(registerRequest(
+      JSON.stringify({ username: "owner", password: "é".repeat(4200) }),
+      "application/json"
+    ));
+    assert.equal(oversizedPayload.status, 413);
+    assert.equal(((await oversizedPayload.json()) as { code: string }).code, "payload_too_large");
 
     assert.equal(auth.hasRegisteredUser(), false);
     assert.deepEqual(auth.registerUser("owner", "Correct1!"), { ok: true, userId: "user-1", username: "owner" });
@@ -144,11 +167,14 @@ test("login route invalidates older sessions for the same user", async () => {
 
     assert.deepEqual(auth.registerUser("owner", "Password1"), { ok: true, userId: "user-1", username: "owner" });
 
-    function loginRequest() {
+    function loginRequest(
+      body = JSON.stringify({ username: "owner", password: "Password1" }),
+      contentType = "application/json"
+    ) {
       return new NextRequest(new URL("/api/auth/login", "http://localhost"), {
         method: "POST",
-        headers: new Headers({ "content-type": "application/json" }),
-        body: JSON.stringify({ username: "owner", password: "Password1" })
+        headers: new Headers({ "content-type": contentType }),
+        body
       });
     }
 
@@ -165,6 +191,17 @@ test("login route invalidates older sessions for the same user", async () => {
       assert.ok(match, "login response should set a session cookie");
       return match[1];
     }
+
+    const unsupportedMedia = await login.POST(loginRequest(undefined, "text/plain"));
+    assert.equal(unsupportedMedia.status, 415);
+    assert.equal(((await unsupportedMedia.json()) as { code: string }).code, "unsupported_media_type");
+
+    const oversizedPayload = await login.POST(loginRequest(JSON.stringify({
+      username: "owner",
+      password: "é".repeat(4200)
+    })));
+    assert.equal(oversizedPayload.status, 413);
+    assert.equal(((await oversizedPayload.json()) as { code: string }).code, "payload_too_large");
 
     const firstLogin = await login.POST(loginRequest());
     assert.equal(firstLogin.status, 200);

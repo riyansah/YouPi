@@ -71,8 +71,82 @@ export function setRequestMetadata(values: Record<string, unknown>) {
   };
 }
 
-export async function parseJsonBody<T>(request: NextRequest): Promise<T | null> {
-  const body = (await request.json().catch(() => null)) as T | null;
+interface ParseJsonBodyOptions {
+  maxBytes?: number;
+  requireJsonContentType?: boolean;
+}
+
+export type JsonBodyErrorCode = "payload_too_large" | "unsupported_media_type";
+
+export class JsonBodyError extends Error {
+  constructor(
+    readonly code: JsonBodyErrorCode,
+    readonly status: 413 | 415
+  ) {
+    super(code === "payload_too_large" ? "JSON payload is too large." : "Content-Type must be JSON.");
+    this.name = "JsonBodyError";
+  }
+}
+
+function hasJsonContentType(request: NextRequest) {
+  const mediaType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  return mediaType === "application/json" || Boolean(mediaType?.startsWith("application/") && mediaType.endsWith("+json"));
+}
+
+async function readBodyWithLimit(request: NextRequest, maxBytes: number) {
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new JsonBodyError("payload_too_large", 413);
+  }
+
+  if (!request.body) {
+    return "";
+  }
+
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let body = "";
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new JsonBodyError("payload_too_large", 413);
+      }
+
+      body += decoder.decode(value, { stream: true });
+    }
+
+    return body + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export async function parseJsonBody<T>(request: NextRequest, options: ParseJsonBodyOptions = {}): Promise<T | null> {
+  if (options.requireJsonContentType && !hasJsonContentType(request)) {
+    throw new JsonBodyError("unsupported_media_type", 415);
+  }
+
+  let body: T | null;
+  if (options.maxBytes === undefined) {
+    body = (await request.json().catch(() => null)) as T | null;
+  } else {
+    const rawBody = await readBodyWithLimit(request, options.maxBytes);
+    try {
+      body = JSON.parse(rawBody) as T;
+    } catch {
+      body = null;
+    }
+  }
+
   if (body !== null) {
     setRequestMetadata({ request_body: body });
   }

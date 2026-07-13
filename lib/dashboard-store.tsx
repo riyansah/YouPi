@@ -2,10 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { AppLoadingSkeleton } from "@/components/AppLoadingSkeleton";
 import { defaultSettings } from "@/lib/data";
 import { LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 import { sortNotes } from "@/lib/notes";
 import { normalizeDashboardSettings, type DashboardBackup } from "@/lib/storage";
+import { syncTimedStatusChanges } from "@/lib/timed-status-sync";
 import { normalizeActivitiesForTime, normalizeTasksForTime } from "@/lib/utils";
 import type { Activity, DashboardSettings, HistoryEvent, Note, Routine, Task } from "@/lib/types";
 
@@ -95,6 +97,18 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const saveChainRef = useRef(Promise.resolve());
+  const tasksRef = useRef(tasks);
+  const activitiesRef = useRef(activities);
+  const pendingTimedTaskIdsRef = useRef(new Set<string>());
+  const pendingTimedActivityIdsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  useEffect(() => {
+    activitiesRef.current = activities;
+  }, [activities]);
 
   const applyDashboardData = useCallback((data: DashboardData) => {
     const nextSettings = normalizeDashboardSettings(data.settings);
@@ -351,34 +365,42 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     function syncTimedStatuses() {
       const now = Date.now();
       const timeZone = settings.timeZone;
+      const currentTasks = tasksRef.current;
+      const nextTasks = normalizeTasksForTime(currentTasks, now, timeZone);
+      const currentActivities = activitiesRef.current;
+      const nextActivities = normalizeActivitiesForTime(currentActivities, now, timeZone);
 
-      setTasksState((current) => {
-        const next = normalizeTasksForTime(current, now, timeZone);
-        if (next !== current) {
-          next.forEach((task) => {
-            const previous = current.find((item) => item.id === task.id);
-            if (previous && !sameItem(previous, task)) void updateTask(task.id, task);
-          });
-        }
-        return next;
-      });
+      if (nextTasks !== currentTasks) {
+        void syncTimedStatusChanges(
+          currentTasks,
+          nextTasks,
+          pendingTimedTaskIdsRef.current,
+          (task) => updateTask(task.id, { status: task.status }),
+          async (id) => {
+            const saved = await requestJson<Task>("/api/tasks/" + id);
+            setTasksState((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+          }
+        );
+      }
 
-      setActivitiesState((current) => {
-        const next = normalizeActivitiesForTime(current, now, timeZone);
-        if (next !== current) {
-          next.forEach((activity) => {
-            const previous = current.find((item) => item.id === activity.id);
-            if (previous && !sameItem(previous, activity)) void updateActivity(activity.id, activity);
-          });
-        }
-        return next;
-      });
+      if (nextActivities !== currentActivities) {
+        void syncTimedStatusChanges(
+          currentActivities,
+          nextActivities,
+          pendingTimedActivityIdsRef.current,
+          (activity) => updateActivity(activity.id, { status: activity.status }),
+          async (id) => {
+            const saved = await requestJson<Activity>("/api/activities/" + id);
+            setActivitiesState((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+          }
+        );
+      }
     }
 
     syncTimedStatuses();
     const timer = window.setInterval(syncTimedStatuses, 30000);
     return () => window.clearInterval(timer);
-  }, [loaded, settings.timeZone, updateActivity, updateTask]);
+  }, [loaded, requestJson, settings.timeZone, updateActivity, updateTask]);
 
   const restoreDashboardBackup = useCallback(async (backup: DashboardBackup) => {
     const saved = await requestJson<DashboardData>("/api/backup", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(backup) });
@@ -423,18 +445,14 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   );
 
   if (!loaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-4 text-sm font-medium text-slate-600">
-        Loading YouPi...
-      </div>
-    );
+    return <AppLoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#f6f7fb]">
+      <div className="app-shell min-h-screen">
         <div className="mx-auto max-w-2xl px-4 py-10">
-          <div className="rounded border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700 shadow-sm">{error}</div>
         </div>
       </div>
     );

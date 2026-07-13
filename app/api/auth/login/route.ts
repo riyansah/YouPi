@@ -10,9 +10,18 @@ import {
   sessionCookieOptions,
   verifyCredentials
 } from "@/lib/server/auth";
-import { logWithContext, parseJsonBody, setRequestMetadata, withRequestContext } from "@/lib/server/request-context";
+import { JsonBodyError, logWithContext, parseJsonBody, setRequestMetadata, withRequestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
+
+const authJsonBodyMaxBytes = 8 * 1024;
+
+function jsonBodyErrorResponse(error: JsonBodyError) {
+  const message = error.code === "payload_too_large"
+    ? "Payload JSON terlalu besar. Batas maksimum 8 KiB."
+    : "Content-Type harus application/json.";
+  return NextResponse.json({ code: error.code, error: message }, { status: error.status });
+}
 
 function isLoginBody(value: unknown): value is { username: string; password: string } {
   return (
@@ -74,7 +83,18 @@ export const POST = withRequestContext(async function POST(request: NextRequest)
     return NextResponse.json(createLockoutPayload(clientIp), { status: 429 });
   }
 
-  const body = (await parseJsonBody<{ username: string; password: string }>(request)) as unknown;
+  let body: unknown;
+  try {
+    body = await parseJsonBody<{ username: string; password: string }>(request, {
+      maxBytes: authJsonBodyMaxBytes,
+      requireJsonContentType: true
+    });
+  } catch (error) {
+    if (error instanceof JsonBodyError) {
+      return jsonBodyErrorResponse(error);
+    }
+    throw error;
+  }
 
   if (!isLoginBody(body)) {
     logWithContext({

@@ -26,7 +26,9 @@ ENV APP_INTERNAL_ORIGIN=http://127.0.0.1:3000
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 
-RUN mkdir -p /data
+RUN mkdir -p /data /app/logs /app/.next/cache && chown -R node:node /data /app/logs /app/.next/cache
+
+USER node
 
 EXPOSE 3000
 

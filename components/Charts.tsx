@@ -29,7 +29,7 @@ const colors = ["#0f766e", "#2563eb", "#f59e0b", "#e11d48", "#64748b", "#7c3aed"
 const tooltipContentStyle = {
   backgroundColor: "#0f172a",
   border: "1px solid #334155",
-  borderRadius: 8,
+  borderRadius: 12,
   color: "#f8fafc"
 };
 const tooltipLabelStyle = { color: "#cbd5e1" };
@@ -45,8 +45,12 @@ function ChartFrame({
   contentClassName?: string;
 }) {
   return (
-    <section className="min-w-0 rounded border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">{title}</h2>
+    <section className="relative min-w-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_30px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/95 sm:p-5">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-400/70 to-transparent" aria-hidden="true" />
+      <div className="flex items-center gap-2.5">
+        <span className="h-2 w-2 rounded-full bg-teal-500 shadow-[0_0_0_4px_rgba(20,184,166,0.1)]" aria-hidden="true" />
+        <h2 className="text-base font-bold tracking-tight text-slate-950 dark:text-slate-50">{title}</h2>
+      </div>
       <div className={`min-w-0 ${contentClassName}`}>{children}</div>
     </section>
   );
@@ -70,7 +74,7 @@ export function TaskStatusChart({ tasks, title, maxLegendItems, language = "en",
         <div className="relative min-h-0 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-              <Pie data={data} dataKey="value" nameKey="label" innerRadius="58%" outerRadius="92%" paddingAngle={3}>
+              <Pie data={data} dataKey="value" nameKey="label" innerRadius="58%" outerRadius="92%" paddingAngle={4} cornerRadius={3}>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={colors[index % colors.length]} />
                 ))}
@@ -87,7 +91,7 @@ export function TaskStatusChart({ tasks, title, maxLegendItems, language = "en",
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-[11px] sm:text-sm">
           {legendItems.map((item) => (
-            <div key={item.name} className="flex min-w-0 items-center justify-between gap-2 rounded border border-slate-200 px-2 py-1.5 dark:border-slate-700">
+            <div key={item.name} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-2.5 py-2 dark:border-slate-700 dark:bg-slate-800/50">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
                 <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
@@ -124,11 +128,11 @@ export function ActivityPerDayChart({
               <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
               <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-              <Bar dataKey="total" name={language === "id" ? "Aktivitas" : "Activities"} fill="#2563eb" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name={language === "id" ? "Aktivitas" : "Activities"} fill="#2563eb" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex items-center gap-2 rounded border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700 sm:text-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-2.5 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/50 sm:text-sm">
           <span className="h-3 w-3 shrink-0 rounded-sm bg-blue-600" />
           <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Aktivitas" : "Activities"}</span>
         </div>
@@ -165,16 +169,16 @@ export function DailyActivityChart({
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
               <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
               <Bar dataKey="activities" name={language === "id" ? "Aktivitas" : "Activities"} stackId="kegiatan" fill="#2563eb" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="routines" name={language === "id" ? "Rutinitas" : "Routines"} stackId="kegiatan" fill="#0f766e" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="routines" name={language === "id" ? "Rutinitas" : "Routines"} stackId="kegiatan" fill="#0f766e" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
         <div className="grid min-h-[3.5rem] content-start gap-2 text-sm sm:grid-cols-2">
-          <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
             <span className="h-3 w-3 rounded-sm bg-blue-600" />
             <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Aktivitas" : "Activities"}</span>
           </div>
-          <div className="flex items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
             <span className="h-3 w-3 rounded-sm bg-teal-700" />
             <span className="font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Rutinitas" : "Routines"}</span>
           </div>
@@ -209,7 +213,7 @@ export function ActivityCategoryChart({
         <div className="min-h-0 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-              <Pie data={data} dataKey="value" nameKey="label" outerRadius="92%">
+              <Pie data={data} dataKey="value" nameKey="label" outerRadius="92%" paddingAngle={2} cornerRadius={3}>
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={colors[index % colors.length]} />
                 ))}
@@ -220,7 +224,7 @@ export function ActivityCategoryChart({
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-[11px] sm:text-sm">
           {legendItems.map((item) => (
-            <div key={item.name} className="flex min-w-0 items-center justify-between gap-2 rounded border border-slate-200 px-2 py-1.5 dark:border-slate-700">
+            <div key={item.name} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-2.5 py-2 dark:border-slate-700 dark:bg-slate-800/50">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
                 <span className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</span>
@@ -261,12 +265,12 @@ export function WeeklyProgressChart({
               <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#94a3b8" }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
               <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-              <Line type="monotone" dataKey="completed" name={language === "id" ? "Pekerjaan selesai" : "Completed work"} stroke="#0f766e" strokeWidth={3} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="completed" name={language === "id" ? "Pekerjaan selesai" : "Completed work"} stroke="#0f766e" strokeWidth={3} dot={{ r: 4, fill: "#0f766e", strokeWidth: 2, stroke: "#ffffff" }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <div className="grid min-h-[3.5rem] content-start gap-2 text-sm sm:grid-cols-2">
-          <div className="flex min-w-0 items-center gap-2 rounded border border-slate-200 px-3 py-2 dark:border-slate-700">
+          <div className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
             <span className="h-3 w-3 shrink-0 rounded-sm bg-teal-700" />
             <span className="truncate font-medium text-slate-700 dark:text-slate-200">{language === "id" ? "Pekerjaan selesai" : "Completed work"}</span>
           </div>

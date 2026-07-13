@@ -90,6 +90,37 @@ test("logger applies retention and redacts sensitive values", () => {
   assert.equal(payload.metadata.nested.safe, "ok");
 });
 
+test("logger keeps console output and does not throw when file logging fails", () => {
+  const dir = mkdtempSync(join(tmpdir(), "activity-logger-failure-"));
+  const invalidLogsDir = join(dir, "not-a-directory");
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  writeFileSync(invalidLogsDir, "occupied");
+
+  const testLogger = createLogger({
+    logsDir: invalidLogsDir,
+    now: () => new Date("2026-07-07T10:00:00.000Z"),
+    stdoutWriter: (line) => stdout.push(line),
+    stderrWriter: (line) => stderr.push(line)
+  });
+
+  assert.doesNotThrow(() =>
+    testLogger.log({
+      level: "info",
+      category: "USER_ACTIVITY",
+      action: "note.created",
+      activity: "Membuat data",
+      metadata: { password: "secret" }
+    })
+  );
+
+  assert.equal(stdout.length, 1);
+  assert.match(stdout[0], /INFO USER_ACTIVITY note\.created/);
+  assert.equal(stderr.length, 1);
+  assert.match(stderr[0], /WARN ERROR logger\.file_write_failed/);
+  assert.doesNotMatch(stderr[0], /secret|not-a-directory/);
+});
+
 test("sanitizeForLogging redacts common sensitive keys recursively", () => {
   const sanitized = sanitizeForLogging({
     password: "secret",

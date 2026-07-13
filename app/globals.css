@@ -4,6 +4,8 @@
 
 :root {
   color-scheme: light;
+  --app-background: #f6f7fb;
+  --app-foreground: #111827;
 }
 
 * {
@@ -12,8 +14,45 @@
 
 body {
   margin: 0;
-  background: #f6f7fb;
-  color: #111827;
+  min-height: 100vh;
+  background: var(--app-background);
+  color: var(--app-foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(13, 148, 136, 0.2);
+  color: #0f172a;
+}
+
+.app-shell {
+  background-color: var(--app-background);
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(13, 148, 136, 0.08), transparent 28rem),
+    radial-gradient(circle at 96% 12%, rgba(59, 130, 246, 0.06), transparent 24rem);
+  background-attachment: fixed;
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+
+.skeleton-shimmer::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.68), transparent);
+  animation: youpi-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes youpi-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 button,
@@ -26,6 +65,26 @@ textarea {
 .dark body {
   background: #0f172a;
   color: #e2e8f0;
+}
+
+.dark .app-shell {
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(20, 184, 166, 0.09), transparent 28rem),
+    radial-gradient(circle at 96% 12%, rgba(59, 130, 246, 0.07), transparent 24rem);
+}
+
+.dark .skeleton-shimmer {
+  background: #263449;
+}
+
+.dark .skeleton-shimmer::after {
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.12), transparent);
+}
+
+.dark ::selection {
+  background: rgba(45, 212, 191, 0.25);
+  color: #f8fafc;
 }
 
 .dark .bg-\[\#f6f7fb\] {
@@ -166,4 +225,15 @@ textarea {
 
 .dark .ring-teal-200 {
   --tw-ring-color: #134e4a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -80,3 +80,65 @@ test("dashboard database persists tasks, activities, routines, and settings", as
     }
   }
 });
+
+test("note mutations roll back when their history event cannot be stored", async () => {
+  const previousSqlitePath = process.env.SQLITE_PATH;
+  process.env.SQLITE_PATH = join(mkdtempSync(join(tmpdir(), "activity-note-transaction-")), "activity.sqlite");
+
+  try {
+    const { createNote, deleteNote, getDashboardData, getDatabase, updateDashboardData, updateNote } = await import("../lib/server/dashboard-db");
+    const sampleNote = {
+      id: "note-atomic",
+      title: "Original title",
+      content: "Atomic note",
+      category: "personal" as const,
+      linkedType: null,
+      linkedId: null,
+      tags: ["atomic"],
+      isPinned: false,
+      createdAt: "2026-07-06T08:00:00.000Z",
+      updatedAt: "2026-07-06T08:00:00.000Z"
+    };
+    const db = getDatabase();
+
+    function expectHistoryFailure(operation: () => unknown) {
+      const originalPrepare = db.prepare;
+      db.prepare = (sql) => {
+        const statement = originalPrepare(sql);
+        return sql.includes("INSERT OR IGNORE INTO history_events")
+          ? {
+              ...statement,
+              run: () => {
+                throw new Error("history write failed");
+              }
+            }
+          : statement;
+      };
+
+      try {
+        assert.throws(operation, /history write failed/);
+      } finally {
+        db.prepare = originalPrepare;
+      }
+    }
+
+    expectHistoryFailure(() => createNote(sampleNote));
+    assert.deepEqual(getDashboardData(false).notes, []);
+    assert.deepEqual(getDashboardData(false).history, []);
+
+    updateDashboardData({ notes: [sampleNote] }, { recordHistory: false, syncMissed: false });
+    expectHistoryFailure(() => updateNote(sampleNote.id, { title: "Changed title" }));
+    assert.deepEqual(getDashboardData(false).notes, [sampleNote]);
+    assert.deepEqual(getDashboardData(false).history, []);
+
+    expectHistoryFailure(() => deleteNote(sampleNote.id));
+    assert.deepEqual(getDashboardData(false).notes, [sampleNote]);
+    assert.deepEqual(getDashboardData(false).history, []);
+  } finally {
+    if (previousSqlitePath === undefined) {
+      delete process.env.SQLITE_PATH;
+    } else {
+      process.env.SQLITE_PATH = previousSqlitePath;
+    }
+  }
+});

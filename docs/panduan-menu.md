@@ -60,7 +60,7 @@ Di halaman ini pengguna bisa:
 
 - membuat, mengedit, menyelesaikan, membatalkan, dan menghapus aktivitas,
 - mengatur kategori, status, tanggal, serta waktu mulai/akhir,
-- memfilter berdasarkan tanggal, kategori, status, dan preferensi,
+- memfilter berdasarkan tanggal dan kategori,
 - menambahkan catatan terkait aktivitas,
 - menangani aktivitas overdue melalui panel `Activities need attention`.
 
@@ -124,7 +124,7 @@ History mencatat event penting seperti created, updated, completed, missed, canc
 
 Di halaman ini pengguna bisa:
 
-- memilih periode harian, mingguan, atau bulanan,
+- memilih periode harian, mingguan, bulanan, atau rentang tanggal kustom,
 - melihat metrik pekerjaan dan aktivitas,
 - membaca grafik status, kategori, dan progres,
 - mengekspor laporan ke CSV, Excel, atau PDF.
@@ -140,7 +140,6 @@ Di halaman ini pengguna bisa:
 - mengubah nama dashboard,
 - memilih bahasa antarmuka `English` atau `Indonesia`,
 - memilih tema `Light`, `Dark`, atau `System`,
-- mengatur kategori aktivitas preferensi,
 - mengunduh backup JSON serta mempreview dan memulihkan backup versi 1-6 dengan backup pengaman otomatis,
 - mereset data work, activities, routines, notes, dan history,
 - membuka halaman ubah password.

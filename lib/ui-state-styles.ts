@@ -36,10 +36,10 @@ const iconToneClasses: Record<IconTone, string> = {
 
 export function getInteractiveSurfaceClassName(options?: { selected?: boolean }) {
   return cn(
-    "rounded border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900",
+    "rounded-2xl border border-slate-200/90 bg-white/95 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_rgba(15,23,42,0.035)] transition duration-200 dark:border-slate-700 dark:bg-slate-900/95",
     options?.selected
       ? "border-teal-300 bg-teal-50/80 ring-1 ring-inset ring-teal-200 dark:border-teal-600 dark:bg-teal-950/30 dark:ring-teal-700"
-      : "hover:border-slate-300 hover:bg-slate-50 dark:hover:border-slate-600 dark:hover:bg-slate-800/80"
+      : "hover:border-teal-200 hover:bg-white hover:shadow-[0_16px_36px_rgba(15,23,42,0.08)] motion-safe:hover:-translate-y-0.5 dark:hover:border-slate-600 dark:hover:bg-slate-900"
   );
 }
 
@@ -48,7 +48,7 @@ export function getSemanticToneClassName(tone: SemanticTone) {
 }
 
 export function getSemanticChipClassName(tone: SemanticTone) {
-  return cn("rounded border px-2 py-1 text-xs font-semibold", semanticToneClasses[tone]);
+  return cn("rounded-full border px-2.5 py-1 text-xs font-semibold", semanticToneClasses[tone]);
 }
 
 export function getCountdownChipClassName(tone: SemanticTone) {
@@ -57,29 +57,29 @@ export function getCountdownChipClassName(tone: SemanticTone) {
 
 export function getOutlineButtonClassName(tone: OutlineButtonTone = "neutral") {
   return cn(
-    "inline-flex items-center rounded border px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900",
+    "inline-flex items-center rounded-lg border px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900",
     outlineButtonTones[tone]
   );
 }
 
 export function getIconButtonClassName(tone: OutlineButtonTone = "neutral") {
-  return cn("inline-flex h-9 w-9 items-center justify-center rounded border transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900", outlineButtonTones[tone]);
+  return cn("inline-flex h-9 w-9 items-center justify-center rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900", outlineButtonTones[tone]);
 }
 
 export function getSolidButtonClassName(tone: SolidButtonTone = "brand") {
   return cn(
-    "inline-flex items-center rounded px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-slate-900",
+    "inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-offset-slate-900",
     solidButtonTones[tone]
   );
 }
 
 export function getFeedbackPanelClassName(kind: "toast" | "modal" | "drawer" | "alert" | "empty" = "toast") {
   if (kind === "empty") {
-    return "rounded border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300";
+    return "rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-8 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-300";
   }
 
   if (kind === "alert") {
-    return "rounded border bg-white p-4 text-sm dark:bg-slate-900";
+    return "rounded-xl border bg-white p-4 text-sm shadow-sm dark:bg-slate-900";
   }
 
   if (kind === "drawer") {
@@ -94,5 +94,5 @@ export function getFeedbackPanelClassName(kind: "toast" | "modal" | "drawer" | "
 }
 
 export function getIconToneClassName(tone: IconTone = "slate") {
-  return cn("flex items-center justify-center rounded", iconToneClasses[tone]);
+  return cn("flex items-center justify-center rounded-xl", iconToneClasses[tone]);
 }

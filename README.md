@@ -6,6 +6,8 @@ YouPi is a single-user personal activity dashboard for managing work, activities
 
 The app stores data in SQLite, protects the dashboard behind login, keeps only the latest user session active, automatically logs out inactive sessions after 15 minutes, and uses `Asia/Jakarta (WIB)` for app time, reports, history, and logs.
 
+The interface uses a calm slate-teal visual system with a focus-first Dashboard, grouped desktop navigation, a compact mobile bottom navigation, skeleton loading, and contextual empty states.
+
 ## Requirements
 
 - Node.js 22.5+
@@ -30,9 +32,18 @@ http://127.0.0.1:3000
 
 On first run, create the local account from `/register`. After that, use `/login`.
 
+For development:
+
+```bash
+npm install
+npm run dev
+```
+
+Use `MODE=dev ./launcher.sh` if you want the launcher to perform the local runtime and dependency checks first. `HOST` and `PORT` can override the launcher's default `127.0.0.1:3000`.
+
 ## Main Menus
 
-- `Dashboard`: mobile-friendly summary cards, today's activity and routine totals, equal-size chart cards, nearest deadlines, and today's agenda.
+- `Dashboard`: focus-first hero with quick actions and the nearest deadline, mobile-friendly summary cards, today's activity and routine totals, equal-size chart cards, and today's agenda.
 - `Work`: mobile-compact tasks, projects, priorities, status, deadlines, and optional start/end times.
 - `Activities`: one-time activities with date, category, status, filters, and overdue actions.
 - `Routines`: recurring weekly routines.
@@ -64,6 +75,8 @@ Authenticated REST endpoints are available for Work, Activities, Routines, Notes
 
 See [docs/api.md](docs/api.md) and [docs/openapi.json](docs/openapi.json).
 
+Public login and registration JSON requests require a JSON content type and enforce an 8 KiB request-size limit. The test suite also checks that implemented API routes, OpenAPI operations, and release versions stay synchronized.
+
 ## Reset Auth
 
 Interactive reset:
@@ -87,10 +100,13 @@ npm run test
 npm run lint
 npm run typecheck
 npm run build
+npm run test:e2e
 ```
+
+`test:e2e` starts the built standalone server with an isolated temporary database and exercises registration, login cookies, middleware redirects, task CRUD, backup restore, logout, server-rendered pages, and standalone static assets over HTTP.
 
 ## Deployment
 
-The app is built for Docker/Next.js deployment behind a reverse proxy that forwards traffic to internal port `3000`.
+The app is built for Docker/Next.js deployment behind a reverse proxy that forwards traffic to internal port `3000`. The production image runs as a non-root user and keeps SQLite data on a writable persistent volume.
 
 Detailed VPS deployment steps are in [docs/deploy-vps-container.md](docs/deploy-vps-container.md).
